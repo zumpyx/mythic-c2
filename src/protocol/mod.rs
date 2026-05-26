@@ -1,0 +1,65 @@
+//! Protocol layer — message types, wire framing, and AES-256-CBC-HMAC crypto.
+//!
+//! This module provides the low-level building blocks:
+//!
+//! | Module | Purpose |
+//! |---|---|
+//! | [`framing`] | Wire format: UUID prefix + base64 + optional AES encryption |
+//! | [`crypto`] | `MythicCrypto` trait + `Aes256HmacCrypto` implementation |
+//! | [`checkin`] | `ReqCheckin` / `RespCheckin` message types |
+//! | [`tasking`] | `ReqGetTasking` / `RespGetTasking` / `ReqPostResponse` / `RespPostResponse` |
+//! | [`task`] | `TaskMessage`, `TaskResponse`, hooking feature types |
+//! | [`staging`] | RSA and translation staging message types |
+//! | [`peer`] | P2P, SOCKS, reverse port forward, interactive, alerts, edges |
+//! | [`error`] | `MythicMessageError` enum |
+
+pub mod checkin;
+pub mod crypto;
+pub mod error;
+pub mod framing;
+pub mod peer;
+pub mod staging;
+pub mod task;
+pub mod tasking;
+
+pub use checkin::{CheckinInfo, CheckinInfoSource, ReqCheckin, RespCheckin};
+pub use crypto::{Aes256HmacCrypto, MythicCrypto};
+pub use error::MythicMessageError;
+pub use framing::{
+    MYTHIC_UUID_BIN_LEN, MYTHIC_UUID_LEN, MythicMessage, decode_message, decode_message_plain,
+    encode_message, encode_message_plain,
+};
+pub use peer::{
+    AlertMessage, DelegateMessage, EdgeMessage, InteractiveMessage, P2PMessage,
+    ReversePortForwardMessage, RpfwdMessage, SocksMessage,
+};
+pub use staging::{
+    ReqStagingRSA, ReqStagingTranslation, ReqTranslationStaging, RespStagingRSA,
+    RespStagingTranslation, RespTranslationStaging,
+};
+pub use task::{
+    Artifact, CallbackToken, CommandAction, Credential, FileBrowserEntry, KeylogEntry,
+    ProcessEntry, RemovedFileInfo, ResponseReceipt, TaskDownload, TaskMessage, TaskResponse,
+    TaskUpload, TokenEntry,
+};
+pub use tasking::{
+    AgentExtras, AgentMessageExtras, AgentResponseExtras, ReqGetTasking, ReqPostResponse,
+    RespGetTasking, RespPostResponse,
+};
+
+pub const ACTION_CHECKIN: &str = "checkin";
+pub const ACTION_STAGING_RSA: &str = "staging_rsa";
+pub const ACTION_STAGING_TRANSLATION: &str = "staging_translation";
+pub const ACTION_TRANSLATION_STAGING: &str = "translation_staging";
+pub const ACTION_GET_TASKING: &str = "get_tasking";
+pub const ACTION_POST_RESPONSE: &str = "post_response";
+pub const ACTION_DELEGATE: &str = "delegate";
+pub const ACTION_P2P: &str = "p2p";
+pub const ACTION_TASK: &str = "task";
+pub const ACTION_TASK_RESPONSE: &str = "task_response";
+pub const ACTION_DOWNLOAD: &str = "download";
+pub const ACTION_SOCKS: &str = "socks";
+pub const ACTION_RPFWD: &str = "rpfwd";
+pub const ACTION_INTERACTIVE: &str = "interactive";
+pub const ACTION_ALERT: &str = "alert";
+pub const ACTION_EDGE: &str = "edge";

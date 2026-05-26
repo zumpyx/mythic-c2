@@ -1,0 +1,27 @@
+[package]
+name = "mythic-c2"
+version = "0.1.0"
+edition = "2024"
+license = "GPL-3.0-only"
+authors = ["Zumpyx <zumpyx@qq.com>"]
+description = "Mythic C2 agent protocol library — message encoding, AES-256-CBC-HMAC crypto, and transport abstraction"
+repository = "https://github.com/zumpyx/mythic-c2"
+documentation = "https://docs.rs/mythic-c2"
+readme = "README.md"
+keywords = ["mythic", "c2", "red-team", "agent", "protocol"]
+categories = ["command-line-utilities", "development-tools"]
+
+[lib]
+name = "mythic"
+path = "src/lib.rs"
+
+[dependencies]
+serde = { version = "1", default-features = false, features = ["derive", "alloc"] }
+serde_json = { version = "1", default-features = false, features = ["alloc"] }
+uuid = { version = "1", default-features = false, features = ["serde"] }
+base64 = { version = "0.22", default-features = false, features = ["alloc"] }
+aes = { version = "0.8", default-features = false }
+cbc = { version = "0.1", default-features = false, features = ["alloc"] }
+cipher = { version = "0.4", default-features = false, features = ["alloc", "block-padding"] }
+hmac = { version = "0.12", default-features = false }
+sha2 = { version = "0.10", default-features = false }
