@@ -71,6 +71,6 @@ pub mod c2;
 pub mod mythic;
 pub mod protocol;
 
-pub use c2::{C2Transport, MythicError, NoopC2};
+pub use c2::{C2Transport, CryptoMode, MythicError, NoopC2};
 pub use mythic::Mythic;
 pub use protocol::*;

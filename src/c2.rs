@@ -24,6 +24,24 @@ impl<E> From<MythicMessageError> for MythicError<E> {
     }
 }
 
+/// Encryption mode for the C2 channel — determined by the payload's
+/// `crypto_type` build parameter.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CryptoMode {
+    /// No encryption — payload built with `crypto_type = "none"`.
+    None,
+    /// Pre-shared AES-256 key embedded in the payload at build time
+    /// (`crypto_type = "aes256_hmac"`).  The agent checks in directly with
+    /// the embedded key; no staging required.
+    StaticKey,
+    /// RSA key exchange — the agent sends a `staging_rsa` message first to
+    /// negotiate a session key, then checks in with the negotiated key.
+    StagingRSA,
+    /// Custom EKE via a translation container — the agent goes through a
+    /// `staging_translation` handshake before checking in.
+    StagingTranslation,
+}
+
 /// Transport layer — one method per message type.
 ///
 /// Every transport must implement the three core methods:
@@ -41,6 +59,13 @@ impl<E> From<MythicMessageError> for MythicError<E> {
 pub trait C2Transport {
     /// Error type for transport failures (timeout, DNS resolution, etc.).
     type Error;
+
+    /// The encryption mode this transport was built with.  Defaults to
+    /// [`CryptoMode::None`] (plaintext).  Override to declare support for
+    /// static keys or staging.
+    fn crypto_mode(&self) -> CryptoMode {
+        CryptoMode::None
+    }
 
     /// Deliver a `checkin` message and return the raw server response.
     fn checkin(&self, packed: &str) -> Result<String, Self::Error>;

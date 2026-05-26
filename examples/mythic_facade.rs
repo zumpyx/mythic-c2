@@ -6,33 +6,48 @@
 //!   一行搞定: checkin() / get_tasking() / … — 传入 &impl C2Transport,
 //!            内部自动 build → send → parse
 
-use mythic::{Aes256HmacCrypto, C2Transport, CheckinInfo, Mythic};
+use mythic::{Aes256HmacCrypto, C2Transport, CheckinInfo, CryptoMode, Mythic};
 use uuid::Uuid;
 
-// ── 示例 C2 实现 ───────────────────────────────────────
+// ── 三个示例 C2, 各自声明不同的加密模式 ───────────────
 
-struct HttpC2;
-
-impl HttpC2 {
-    fn send(&self, _packed: &str) -> Result<String, String> {
-        // 实际用 ureq/reqwest:
-        // ureq::get("https://mythic-server/agent_message")
-        //     .query("q", packed).call()?.into_string()
-        Ok(String::new()) // 模拟
-    }
+struct PlaintextC2;
+impl PlaintextC2 {
+    fn send(&self, _p: &str) -> Result<String, String> { Ok(String::new()) }
 }
-
-impl C2Transport for HttpC2 {
+impl C2Transport for PlaintextC2 {
     type Error = String;
-
+    fn crypto_mode(&self) -> CryptoMode { CryptoMode::None }
     fn checkin(&self, p: &str) -> Result<String, Self::Error> { self.send(p) }
     fn get_tasking(&self, p: &str) -> Result<String, Self::Error> { self.send(p) }
     fn post_response(&self, p: &str) -> Result<String, Self::Error> { self.send(p) }
-    // staging_rsa / staging_translation 有默认实现 → 自动走 checkin
+}
+
+struct StaticKeyC2;
+impl StaticKeyC2 {
+    fn send(&self, _p: &str) -> Result<String, String> { Ok(String::new()) }
+}
+impl C2Transport for StaticKeyC2 {
+    type Error = String;
+    fn crypto_mode(&self) -> CryptoMode { CryptoMode::StaticKey }
+    fn checkin(&self, p: &str) -> Result<String, Self::Error> { self.send(p) }
+    fn get_tasking(&self, p: &str) -> Result<String, Self::Error> { self.send(p) }
+    fn post_response(&self, p: &str) -> Result<String, Self::Error> { self.send(p) }
+}
+
+struct StagingC2;
+impl StagingC2 {
+    fn send(&self, _p: &str) -> Result<String, String> { Ok(String::new()) }
+}
+impl C2Transport for StagingC2 {
+    type Error = String;
+    fn crypto_mode(&self) -> CryptoMode { CryptoMode::StagingRSA }
+    fn checkin(&self, p: &str) -> Result<String, Self::Error> { self.send(p) }
+    fn get_tasking(&self, p: &str) -> Result<String, Self::Error> { self.send(p) }
+    fn post_response(&self, p: &str) -> Result<String, Self::Error> { self.send(p) }
 }
 
 fn main() {
-    let _c2 = HttpC2;  // 实际使用时传递给 mythic.checkin(info, &_c2)?
     let agent_uuid = Uuid::parse_str("f0f0f0f0-1111-2222-3333-444444444444").unwrap();
 
     // ═══════════════════════════════════════════════════════
@@ -40,6 +55,9 @@ fn main() {
     // ═══════════════════════════════════════════════════════
     println!("═══ 场景 1: 明文 ═══\n");
 
+    let c2 = PlaintextC2;
+    // C2 声明 crypto_mode = None, 所以 Mythic 不带 crypto
+    assert_eq!(c2.crypto_mode(), CryptoMode::None);
     let mythic = Mythic::new(agent_uuid);
 
     // ── 精细控制: build / send / parse 分步 ──
@@ -66,6 +84,9 @@ fn main() {
     // ═══════════════════════════════════════════════════════
     println!("═══ 场景 2: 静态密钥 ═══\n");
 
+    let c2 = StaticKeyC2;
+    // C2 声明 crypto_mode = StaticKey, 所以 Mythic 带预共享密钥
+    assert_eq!(c2.crypto_mode(), CryptoMode::StaticKey);
     let crypto = Aes256HmacCrypto::new([0xAB; 32], [0xCD; 16]);
     let mythic = Mythic::with_crypto(agent_uuid, crypto);
 
@@ -85,8 +106,11 @@ fn main() {
     // ═══════════════════════════════════════════════════════
     // 场景 3: RSA 密钥交换
     // ═══════════════════════════════════════════════════════
-    println!("═══ 场景 3: RSA 交换 ═══\n");
+    println!("═══ 场景 3: RSA 密钥交换 ═══\n");
 
+    let c2 = StagingC2;
+    // C2 声明 crypto_mode = StagingRSA, 需要先交换密钥再 checkin
+    assert_eq!(c2.crypto_mode(), CryptoMode::StagingRSA);
     let aes_psk = Aes256HmacCrypto::new([0x55; 32], [0x66; 16]);
     let mythic = Mythic::with_crypto(agent_uuid, aes_psk);
 
