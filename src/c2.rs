@@ -24,24 +24,6 @@ impl<E> From<MythicMessageError> for MythicError<E> {
     }
 }
 
-/// Encryption mode for the C2 channel — determined by the payload's
-/// `crypto_type` build parameter.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CryptoMode {
-    /// No encryption — payload built with `crypto_type = "none"`.
-    None,
-    /// Pre-shared AES-256 key embedded in the payload at build time
-    /// (`crypto_type = "aes256_hmac"`).  The agent checks in directly with
-    /// the embedded key; no staging required.
-    StaticKey,
-    /// RSA key exchange — the agent sends a `staging_rsa` message first to
-    /// negotiate a session key, then checks in with the negotiated key.
-    StagingRSA,
-    /// Custom EKE via a translation container — the agent goes through a
-    /// `staging_translation` handshake before checking in.
-    StagingTranslation,
-}
-
 /// Transport layer — one method per message type.
 ///
 /// Every transport must implement the three core methods:

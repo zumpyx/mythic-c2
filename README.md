@@ -25,10 +25,10 @@ impl C2Transport for MyC2 {
 let agent_uuid = Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwrap();
 let c2 = MyC2 { key_b64: Some("q83v...base64key...".into()), needs_staging: false };
 
-// Mythic auto-reads key from C2; IV is generated per message
-let mut mythic = Mythic::from_c2(agent_uuid, &c2);
+// Mythic holds UUID; crypto is read from C2 at pack time
+let mut mythic = Mythic::new(agent_uuid);
 
-// Build a checkin packet — automatically AES-encrypted
+// Build a checkin packet — C2's aes_psk() decides encrypt vs plain
 let pkt = mythic.build_checkin(CheckinInfo {
     os: Some("linux".into()),
     host: Some("web01".into()),
@@ -36,23 +36,17 @@ let pkt = mythic.build_checkin(CheckinInfo {
     pid: Some(1337),
     ips: vec!["10.0.0.1".into()],
     ..Default::default()
-}).unwrap();
+}, &c2).unwrap();
 // → Base64( UUID + AES256( JSON({ "action": "checkin", ... }) ) )
 ```
 
 ## Three API Levels
 
-**`from_c2`** — C2 carries key + staging flag, Mythic auto-configures:
+**`Mythic` facade** — crypto comes from C2 at call time:
 ```rust
-let mythic = Mythic::from_c2(uuid, &c2);
-```
-
-**`Mythic` facade** — manual control over crypto:
-```rust
-let mythic = Mythic::new(uuid);                    // plaintext
-let mythic = Mythic::with_crypto(uuid, crypto);     // encrypted
-let pkt = mythic.build_checkin(info)?;
-let (_, resp) = mythic.parse_checkin(&reply)?;
+let mythic = Mythic::new(uuid);
+let pkt = mythic.build_checkin(info, &c2)?;     // C2.aes_psk() decides encrypt/plain
+let (_, resp) = mythic.parse_checkin(&reply, &c2)?;
 mythic.set_agent_uuid(resp.id);
 ```
 
@@ -90,9 +84,9 @@ impl C2Transport for HttpTransport {
 
 | Scenario | C2 config | Mythic setup |
 |---|---|---|
-| Plaintext | `aes_psk = None, exchange = false` | `Mythic::new(uuid)` or `Mythic::from_c2(uuid, &c2)` |
-| Static key | `aes_psk = Some(key), exchange = false` | `Mythic::with_crypto(uuid, key)` or `Mythic::from_c2(uuid, &c2)` |
-| RSA EKE | `aes_psk = Some(key), exchange = true` | `Mythic::with_crypto(uuid, aes_psk)` → staging → `set_crypto(…)` |
+| Plaintext | `aes_psk = None` | `build_checkin(info, &c2)` — plain |
+| Static key | `aes_psk = Some(key)` | `build_checkin(info, &c2)` — AES encrypted |
+| RSA EKE | `aes_psk = Some(key)`, `exchange = true` | `staging_rsa(…, &c2)` → checkin |
 
 See [`examples/mythic_facade.rs`](examples/mythic_facade.rs) for the full agent lifecycle.
 

@@ -103,12 +103,13 @@ fn base64_encode(data: &[u8]) -> String {
 ///
 /// # Example
 ///
-/// ```ignore
-/// let crypto = Aes256HmacCrypto::new(key);
-/// let iv = [0xCC; 16]; // fresh random IV per message
-/// let req = ReqCheckin::new(uuid, info);
-/// let packet = encode_message(&req, uuid, &crypto, &iv)?;
-/// // send `packet` to the Mythic server
+/// ```
+/// use mythic::protocol::{encode_message, Aes256HmacCrypto};
+/// let crypto = Aes256HmacCrypto::new([0xAB; 32]);
+/// let iv = [0xCC; 16];
+/// let json = r#"{"action":"checkin"}"#.as_bytes().to_vec();
+/// let packet = encode_message(&json, uuid::Uuid::nil(), &crypto, &iv)?;
+/// # Ok::<(), mythic::protocol::MythicMessageError>(())
 /// ```
 pub fn encode_message<T: Serialize>(
     msg: &T,
@@ -148,8 +149,17 @@ pub fn encode_message_plain<T: Serialize>(
 ///
 /// # Example
 ///
-/// ```ignore
-/// let (server_uuid, response) = decode_message::<RespCheckin>(&packet, Some(expected_uuid), &crypto)?;
+/// ```
+/// use mythic::protocol::{decode_message, encode_message, Aes256HmacCrypto};
+/// let crypto = Aes256HmacCrypto::new([0xAB; 32]);
+/// let iv = [0xCC; 16];
+/// let uuid = uuid::Uuid::nil();
+/// let msg = "test".as_bytes().to_vec();
+/// let packet = encode_message(&msg, uuid, &crypto, &iv)?;
+/// let (decoded_uuid, decoded_msg) = decode_message::<Vec<u8>>(&packet, Some(uuid), &crypto)?;
+/// assert_eq!(decoded_uuid, uuid);
+/// assert_eq!(decoded_msg, msg);
+/// # Ok::<(), mythic::protocol::MythicMessageError>(())
 /// ```
 pub fn decode_message<T: DeserializeOwned>(
     packed: &str,
