@@ -19,7 +19,8 @@ use base64::{Engine as _, engine::general_purpose::URL_SAFE};
 use serde::{Serialize, de::DeserializeOwned};
 use uuid::Uuid;
 
-use super::{crypto::MythicCrypto, error::MythicMessageError};
+use super::crypto::{AES256_IV_LEN, MythicCrypto};
+use super::error::MythicMessageError;
 
 pub const MYTHIC_UUID_LEN: usize = 36;
 pub const MYTHIC_UUID_BIN_LEN: usize = 16;
@@ -103,18 +104,20 @@ fn base64_encode(data: &[u8]) -> String {
 /// # Example
 ///
 /// ```ignore
-/// let crypto = Aes256HmacCrypto::new(key, iv);
+/// let crypto = Aes256HmacCrypto::new(key);
+/// let iv = [0xCC; 16]; // fresh random IV per message
 /// let req = ReqCheckin::new(uuid, info);
-/// let packet = encode_message(&req, uuid, &crypto)?;
+/// let packet = encode_message(&req, uuid, &crypto, &iv)?;
 /// // send `packet` to the Mythic server
 /// ```
 pub fn encode_message<T: Serialize>(
     msg: &T,
     uuid: Uuid,
     crypto: &impl MythicCrypto,
+    iv: &[u8; AES256_IV_LEN],
 ) -> Result<String, MythicMessageError> {
     let json = serde_json::to_vec(msg).map_err(|_| MythicMessageError::Serialize)?;
-    let ciphertext = crypto.encrypt(&json)?;
+    let ciphertext = crypto.encrypt(&json, iv)?;
     Ok(base64_encode(&build_packet(
         uuid,
         &ciphertext,
@@ -185,8 +188,9 @@ pub trait MythicMessage: Serialize + DeserializeOwned + Sized {
         &self,
         uuid: Uuid,
         crypto: &impl MythicCrypto,
+        iv: &[u8; AES256_IV_LEN],
     ) -> Result<String, MythicMessageError> {
-        encode_message(self, uuid, crypto)
+        encode_message(self, uuid, crypto, iv)
     }
 
     /// Encode this message without encryption (for staging).
@@ -224,26 +228,38 @@ mod tests {
 
     use crate::protocol::staging::{ReqStagingRSA, ReqStagingTranslation};
 
+    const TEST_IV: [u8; AES256_IV_LEN] = [0xCC; AES256_IV_LEN];
+
     struct ReverseCrypto;
 
     impl MythicCrypto for ReverseCrypto {
-        fn encrypt(&self, plaintext: &[u8]) -> Result<Vec<u8>, MythicMessageError> {
-            let mut out = plaintext.to_vec();
-            out.reverse();
+        fn encrypt(
+            &self,
+            plaintext: &[u8],
+            iv: &[u8; AES256_IV_LEN],
+        ) -> Result<Vec<u8>, MythicMessageError> {
+            let mut out = iv.to_vec();
+            out.extend(plaintext.iter().rev().copied().collect::<Vec<_>>());
             Ok(out)
         }
 
         fn decrypt(&self, ciphertext: &[u8]) -> Result<Vec<u8>, MythicMessageError> {
-            let mut out = ciphertext.to_vec();
-            out.reverse();
-            Ok(out)
+            if ciphertext.len() < AES256_IV_LEN {
+                return Err(MythicMessageError::Crypto);
+            }
+            let payload = &ciphertext[AES256_IV_LEN..];
+            Ok(payload.iter().rev().copied().collect())
         }
     }
 
     struct FailingCrypto;
 
     impl MythicCrypto for FailingCrypto {
-        fn encrypt(&self, _plaintext: &[u8]) -> Result<Vec<u8>, MythicMessageError> {
+        fn encrypt(
+            &self,
+            _plaintext: &[u8],
+            _iv: &[u8; AES256_IV_LEN],
+        ) -> Result<Vec<u8>, MythicMessageError> {
             Err(MythicMessageError::Crypto)
         }
 
@@ -288,7 +304,7 @@ mod tests {
             "hello".to_string(),
         );
 
-        let packed = req.to_wire(uuid, &ReverseCrypto).unwrap();
+        let packed = req.to_wire(uuid, &ReverseCrypto, &TEST_IV).unwrap();
         let (decoded_uuid, decoded_req) =
             ReqStagingTranslation::from_wire(&packed, Some(uuid), &ReverseCrypto).unwrap();
 
@@ -345,7 +361,7 @@ mod tests {
 
         // Serialization failure
         assert!(matches!(
-            encode_message(&BrokenSerialize, uuid, &ReverseCrypto),
+            encode_message(&BrokenSerialize, uuid, &ReverseCrypto, &TEST_IV),
             Err(MythicMessageError::Serialize)
         ));
         assert!(matches!(
@@ -369,7 +385,7 @@ mod tests {
         // Crypto failure on encrypt
         let req = ReqStagingRSA::new("p".into(), "s".into());
         assert!(matches!(
-            req.to_wire(uuid, &FailingCrypto),
+            req.to_wire(uuid, &FailingCrypto, &TEST_IV),
             Err(MythicMessageError::Crypto)
         ));
 
@@ -389,8 +405,8 @@ mod tests {
             "sid".into(), "enc".into(), "dec".into(), "aes".into(), uuid, "hello".into(),
         );
 
-        let packed_fn = encode_message(&msg, uuid, &ReverseCrypto).unwrap();
-        let packed_trait = msg.to_wire(uuid, &ReverseCrypto).unwrap();
+        let packed_fn = encode_message(&msg, uuid, &ReverseCrypto, &TEST_IV).unwrap();
+        let packed_trait = msg.to_wire(uuid, &ReverseCrypto, &TEST_IV).unwrap();
         assert_eq!(packed_fn, packed_trait);
 
         let (uuid_fn, msg_fn): (Uuid, ReqStagingTranslation) =

@@ -35,7 +35,7 @@
 //! #     fn get_tasking(&self, p: &str) -> Result<String, Self::Error> { Ok(String::new()) }
 //! #     fn post_response(&self, p: &str) -> Result<String, Self::Error> { Ok(String::new()) }
 //! # }
-//! let crypto = Aes256HmacCrypto::new([0xAB; 32], [0xCD; 16]);
+//! let crypto = Aes256HmacCrypto::new([0xAB; 32]);
 //! let mut mythic = Mythic::with_crypto(
 //!     Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwrap(),
 //!     crypto,
@@ -59,8 +59,8 @@
 //!
 //! | Scenario | Setup | First Message |
 //! |---|---|---|
-//! | Plaintext | `Mythic::new(uuid)` | `build_checkin()` — no encryption |
-//! | Static key | `Mythic::with_crypto(uuid, key)` | `build_checkin()` — AES encrypted |
+//! | Plaintext | `Mythic::new(uuid)` or `Mythic::from_c2(uuid, &c2, iv)` | `build_checkin()` — no encryption |
+//! | Static key | `Mythic::with_crypto(uuid, key)` or `Mythic::from_c2(uuid, &c2, iv)` | `build_checkin()` — AES encrypted |
 //! | RSA EKE | `Mythic::with_crypto(uuid, aes_psk)` → `staging_rsa()` → `set_crypto(…)` | `build_checkin()` — negotiated key |
 
 #![no_std]

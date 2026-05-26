@@ -1,47 +1,28 @@
-//! Mythic 门面使用示例 — 三种通信场景 + C2Profile.
+//! Mythic 门面使用示例 — C2 自带加密配置, `Mythic::from_c2()` 自动读取.
 //!
-//! ## 两层 API
+//! ## 三层 API
 //!
-//!   精细控制: build_* / parse_* — 只做编解码, 传输完全由你控制
-//!   一行搞定: checkin() / get_tasking() / … — 传入 &impl C2Transport,
-//!            内部自动 build → send → parse
+//!   from_c2:      Mythic::from_c2(uuid, &c2, iv) — C2 提供 key+staging 标记
+//!   精细控制:      build_* / parse_* — 只做编解码, 传输由你控制
+//!   组合方法:      checkin() / get_tasking() / … — 传入 &impl C2Transport
+//!                 内部自动 build → send → parse
 
-use mythic::{Aes256HmacCrypto, C2Transport, CheckinInfo, CryptoMode, Mythic};
+use mythic::{Aes256HmacCrypto, C2Transport, CheckinInfo, Mythic};
 use uuid::Uuid;
 
-// ── 三个示例 C2, 各自声明不同的加密模式 ───────────────
+// ── 示例: C2 自带加密配置, Mythic 从 C2 读取 ──────────
 
-struct PlaintextC2;
-impl PlaintextC2 {
+struct HttpC2 {
+    key_b64: Option<String>,
+    needs_staging: bool,
+}
+impl HttpC2 {
     fn send(&self, _p: &str) -> Result<String, String> { Ok(String::new()) }
 }
-impl C2Transport for PlaintextC2 {
+impl C2Transport for HttpC2 {
     type Error = String;
-    fn crypto_mode(&self) -> CryptoMode { CryptoMode::None }
-    fn checkin(&self, p: &str) -> Result<String, Self::Error> { self.send(p) }
-    fn get_tasking(&self, p: &str) -> Result<String, Self::Error> { self.send(p) }
-    fn post_response(&self, p: &str) -> Result<String, Self::Error> { self.send(p) }
-}
-
-struct StaticKeyC2;
-impl StaticKeyC2 {
-    fn send(&self, _p: &str) -> Result<String, String> { Ok(String::new()) }
-}
-impl C2Transport for StaticKeyC2 {
-    type Error = String;
-    fn crypto_mode(&self) -> CryptoMode { CryptoMode::StaticKey }
-    fn checkin(&self, p: &str) -> Result<String, Self::Error> { self.send(p) }
-    fn get_tasking(&self, p: &str) -> Result<String, Self::Error> { self.send(p) }
-    fn post_response(&self, p: &str) -> Result<String, Self::Error> { self.send(p) }
-}
-
-struct StagingC2;
-impl StagingC2 {
-    fn send(&self, _p: &str) -> Result<String, String> { Ok(String::new()) }
-}
-impl C2Transport for StagingC2 {
-    type Error = String;
-    fn crypto_mode(&self) -> CryptoMode { CryptoMode::StagingRSA }
+    fn aes_psk(&self) -> Option<String> { self.key_b64.clone() }
+    fn encrypted_exchange_check(&self) -> bool { self.needs_staging }
     fn checkin(&self, p: &str) -> Result<String, Self::Error> { self.send(p) }
     fn get_tasking(&self, p: &str) -> Result<String, Self::Error> { self.send(p) }
     fn post_response(&self, p: &str) -> Result<String, Self::Error> { self.send(p) }
@@ -51,13 +32,11 @@ fn main() {
     let agent_uuid = Uuid::parse_str("f0f0f0f0-1111-2222-3333-444444444444").unwrap();
 
     // ═══════════════════════════════════════════════════════
-    // 场景 1: 明文传输
+    // 场景 1: 明文 — C2 无 key, 不需要 staging
     // ═══════════════════════════════════════════════════════
     println!("═══ 场景 1: 明文 ═══\n");
 
-    let c2 = PlaintextC2;
-    // C2 声明 crypto_mode = None, 所以 Mythic 不带 crypto
-    assert_eq!(c2.crypto_mode(), CryptoMode::None);
+    let _c2 = HttpC2 { key_b64: None, needs_staging: false };
     let mythic = Mythic::new(agent_uuid);
 
     // ── 精细控制: build / send / parse 分步 ──
@@ -80,15 +59,15 @@ fn main() {
     println!("→ get_tasking 包:\n  {pkt}\n");
 
     // ═══════════════════════════════════════════════════════
-    // 场景 2: 静态密钥
+    // 场景 2: 静态密钥 — C2 自带 key, 不需要 staging
     // ═══════════════════════════════════════════════════════
     println!("═══ 场景 2: 静态密钥 ═══\n");
 
-    let c2 = StaticKeyC2;
-    // C2 声明 crypto_mode = StaticKey, 所以 Mythic 带预共享密钥
-    assert_eq!(c2.crypto_mode(), CryptoMode::StaticKey);
-    let crypto = Aes256HmacCrypto::new([0xAB; 32], [0xCD; 16]);
-    let mythic = Mythic::with_crypto(agent_uuid, crypto);
+    let c2 = HttpC2 {
+        key_b64: Some(Aes256HmacCrypto::new([0xAB; 32]).key_b64()),
+        needs_staging: false,
+    };
+    let mythic = Mythic::from_c2(agent_uuid, &c2);  // 从 C2 读 key, IV 自动生成
 
     let pkt = mythic.build_checkin(CheckinInfo {
         os: Some("windows".into()),
@@ -104,15 +83,15 @@ fn main() {
     // let (_uuid, resp) = mythic.parse_checkin(&reply).unwrap();
 
     // ═══════════════════════════════════════════════════════
-    // 场景 3: RSA 密钥交换
+    // 场景 3: RSA 密钥交换 — C2 自带 AESPSK, 需要 staging
     // ═══════════════════════════════════════════════════════
     println!("═══ 场景 3: RSA 密钥交换 ═══\n");
 
-    let c2 = StagingC2;
-    // C2 声明 crypto_mode = StagingRSA, 需要先交换密钥再 checkin
-    assert_eq!(c2.crypto_mode(), CryptoMode::StagingRSA);
-    let aes_psk = Aes256HmacCrypto::new([0x55; 32], [0x66; 16]);
-    let mythic = Mythic::with_crypto(agent_uuid, aes_psk);
+    let c2 = HttpC2 {
+        key_b64: Some(Aes256HmacCrypto::new([0x55; 32]).key_b64()),
+        needs_staging: true,
+    };
+    let mythic = Mythic::from_c2(agent_uuid, &c2);
 
     let pkt = mythic.build_staging_rsa(
         "-----BEGIN PUBLIC KEY-----\nagent-rsa-pub-key\n-----END PUBLIC KEY-----",
@@ -123,7 +102,7 @@ fn main() {
     // let (_uuid, resp) = mythic.parse_staging_rsa(&reply).unwrap();
     // mythic.set_agent_uuid(resp.uuid);
     // let session_key = rsa_decrypt(priv_key, &resp.session_key);
-    // let new_key = Aes256HmacCrypto::new(session_key, iv);
+    // let new_key = Aes256HmacCrypto::new(session_key);
     // mythic.set_crypto(new_key);
 
     // ═══════════════════════════════════════════════════════

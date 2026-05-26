@@ -122,9 +122,10 @@ mod tests {
         fn encrypt(
             &self,
             plaintext: &[u8],
+            iv: &[u8; super::super::crypto::AES256_IV_LEN],
         ) -> Result<alloc::vec::Vec<u8>, super::super::error::MythicMessageError> {
-            let mut out = plaintext.to_vec();
-            out.reverse();
+            let mut out = iv.to_vec();
+            out.extend(plaintext.iter().rev().copied().collect::<alloc::vec::Vec<_>>());
             Ok(out)
         }
 
@@ -132,11 +133,16 @@ mod tests {
             &self,
             ciphertext: &[u8],
         ) -> Result<alloc::vec::Vec<u8>, super::super::error::MythicMessageError> {
-            let mut out = ciphertext.to_vec();
-            out.reverse();
-            Ok(out)
+            if ciphertext.len() < super::super::crypto::AES256_IV_LEN {
+                return Err(super::super::error::MythicMessageError::Crypto);
+            }
+            let payload = &ciphertext[super::super::crypto::AES256_IV_LEN..];
+            Ok(payload.iter().rev().copied().collect())
         }
     }
+
+    const TEST_IV: [u8; super::super::crypto::AES256_IV_LEN] =
+        [0xCC; super::super::crypto::AES256_IV_LEN];
 
     #[test]
     fn staging_rsa_roundtrip() {
@@ -201,7 +207,7 @@ mod tests {
             "hello".to_string(),
         );
 
-        let packed = req.to_wire(uuid, &ReverseCrypto).unwrap();
+        let packed = req.to_wire(uuid, &ReverseCrypto, &TEST_IV).unwrap();
         let (decoded_uuid, decoded_req) =
             ReqStagingTranslation::from_wire(&packed, Some(uuid), &ReverseCrypto).unwrap();
 
