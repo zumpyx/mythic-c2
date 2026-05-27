@@ -2,7 +2,7 @@ use alloc::{
     string::String,
     vec::Vec,
 };
-use core::cell::Cell;
+use core::cell::{Cell, RefCell};
 use uuid::Uuid;
 
 use crate::c2::{C2Transport, MythicError};
@@ -13,11 +13,25 @@ use crate::protocol::{
     decode_message_plain, encode_message, encode_message_plain,
 };
 
+/// Wire packet with its pre-encryption JSON payload, for debugging.
+///
+/// Automatically populated by every `build_*` call in debug mode.
+/// Access via [`Mythic::last_trace`].
+#[cfg(debug_assertions)]
+#[derive(Debug, Clone)]
+pub struct PackTrace {
+    pub json: String,
+    pub packet: String,
+}
+
 /// High-level facade for building and parsing Mythic protocol messages.
 ///
 /// Holds the agent's current UUID and an IV counter.  Encryption keys come
 /// from the C2 at call time via [`C2Transport::aes_psk`]; the IV is
 /// auto-generated from the counter for each message.
+///
+/// In debug builds, every `build_*` call automatically captures a
+/// [`PackTrace`] accessible via [`last_trace`](Mythic::last_trace).
 ///
 /// # UUID lifecycle
 ///
@@ -31,11 +45,24 @@ use crate::protocol::{
 pub struct Mythic {
     agent_uuid: Uuid,
     iv_counter: Cell<u64>,
+    #[cfg(debug_assertions)]
+    last_trace: RefCell<Option<PackTrace>>,
 }
 
 impl Mythic {
     pub fn new(agent_uuid: Uuid) -> Self {
-        Self { agent_uuid, iv_counter: Cell::new(0) }
+        Self {
+            agent_uuid,
+            iv_counter: Cell::new(0),
+            #[cfg(debug_assertions)]
+            last_trace: RefCell::new(None),
+        }
+    }
+
+    /// The most recent packet trace, captured automatically in debug mode.
+    #[cfg(debug_assertions)]
+    pub fn last_trace(&self) -> Option<PackTrace> {
+        self.last_trace.borrow().clone()
     }
 
     /// Current outer UUID used in message framing.
@@ -51,26 +78,19 @@ impl Mythic {
     // ── Checkin ───────────────────────────────────────
 
     pub fn build_checkin(
-        &self,
-        info: CheckinInfo,
-        c2: &impl C2Transport,
+        &self, info: CheckinInfo, c2: &impl C2Transport,
     ) -> Result<String, MythicMessageError> {
-        let req = ReqCheckin::new(self.agent_uuid, info);
-        self.encode(&req, c2)
+        self.encode(&ReqCheckin::new(self.agent_uuid, info), c2)
     }
 
     pub fn build_checkin_minimal(
-        &self,
-        c2: &impl C2Transport,
+        &self, c2: &impl C2Transport,
     ) -> Result<String, MythicMessageError> {
-        let req = ReqCheckin::minimal(self.agent_uuid);
-        self.encode(&req, c2)
+        self.encode(&ReqCheckin::minimal(self.agent_uuid), c2)
     }
 
     pub fn parse_checkin(
-        &self,
-        packed: &str,
-        c2: &impl C2Transport,
+        &self, packed: &str, c2: &impl C2Transport,
     ) -> Result<(Uuid, RespCheckin), MythicMessageError> {
         self.decode(packed, c2)
     }
@@ -78,18 +98,13 @@ impl Mythic {
     // ── GetTasking ────────────────────────────────────
 
     pub fn build_get_tasking(
-        &self,
-        tasking_size: i32,
-        c2: &impl C2Transport,
+        &self, tasking_size: i32, c2: &impl C2Transport,
     ) -> Result<String, MythicMessageError> {
-        let req = ReqGetTasking::new(tasking_size);
-        self.encode(&req, c2)
+        self.encode(&ReqGetTasking::new(tasking_size), c2)
     }
 
     pub fn parse_get_tasking(
-        &self,
-        packed: &str,
-        c2: &impl C2Transport,
+        &self, packed: &str, c2: &impl C2Transport,
     ) -> Result<(Uuid, RespGetTasking), MythicMessageError> {
         self.decode(packed, c2)
     }
@@ -97,18 +112,13 @@ impl Mythic {
     // ── PostResponse ──────────────────────────────────
 
     pub fn build_post_response(
-        &self,
-        responses: Vec<TaskResponse>,
-        c2: &impl C2Transport,
+        &self, responses: Vec<TaskResponse>, c2: &impl C2Transport,
     ) -> Result<String, MythicMessageError> {
-        let req = ReqPostResponse::new(responses);
-        self.encode(&req, c2)
+        self.encode(&ReqPostResponse::new(responses), c2)
     }
 
     pub fn parse_post_response(
-        &self,
-        packed: &str,
-        c2: &impl C2Transport,
+        &self, packed: &str, c2: &impl C2Transport,
     ) -> Result<(Uuid, RespPostResponse), MythicMessageError> {
         self.decode(packed, c2)
     }
@@ -116,19 +126,13 @@ impl Mythic {
     // ── Staging RSA ───────────────────────────────────
 
     pub fn build_staging_rsa(
-        &self,
-        pub_key: &str,
-        session_id: &str,
-        c2: &impl C2Transport,
+        &self, pub_key: &str, session_id: &str, c2: &impl C2Transport,
     ) -> Result<String, MythicMessageError> {
-        let req = ReqStagingRSA::new(pub_key.into(), session_id.into());
-        self.encode(&req, c2)
+        self.encode(&ReqStagingRSA::new(pub_key.into(), session_id.into()), c2)
     }
 
     pub fn parse_staging_rsa(
-        &self,
-        packed: &str,
-        c2: &impl C2Transport,
+        &self, packed: &str, c2: &impl C2Transport,
     ) -> Result<(Uuid, RespStagingRSA), MythicMessageError> {
         self.decode(packed, c2)
     }
@@ -137,29 +141,17 @@ impl Mythic {
 
     pub fn build_staging_translation(
         &self,
-        session_id: &str,
-        enc_key: &str,
-        dec_key: &str,
-        crypto_type: &str,
-        next_uuid: Uuid,
-        message: &str,
-        c2: &impl C2Transport,
+        session_id: &str, enc_key: &str, dec_key: &str, crypto_type: &str,
+        next_uuid: Uuid, message: &str, c2: &impl C2Transport,
     ) -> Result<String, MythicMessageError> {
-        let req = ReqStagingTranslation::new(
-            session_id.into(),
-            enc_key.into(),
-            dec_key.into(),
-            crypto_type.into(),
-            next_uuid,
-            message.into(),
-        );
-        self.encode(&req, c2)
+        self.encode(&ReqStagingTranslation::new(
+            session_id.into(), enc_key.into(), dec_key.into(),
+            crypto_type.into(), next_uuid, message.into(),
+        ), c2)
     }
 
     pub fn parse_staging_translation(
-        &self,
-        packed: &str,
-        c2: &impl C2Transport,
+        &self, packed: &str, c2: &impl C2Transport,
     ) -> Result<(Uuid, RespStagingTranslation), MythicMessageError> {
         self.decode(packed, c2)
     }
@@ -167,9 +159,7 @@ impl Mythic {
     // ── Combined: build → send → parse ───────────────
 
     pub fn checkin<C: C2Transport>(
-        &self,
-        info: CheckinInfo,
-        c2: &C,
+        &self, info: CheckinInfo, c2: &C,
     ) -> Result<(Uuid, RespCheckin), MythicError<C::Error>> {
         let pkt = self.build_checkin(info, c2)?;
         let reply = c2.checkin(&pkt).map_err(MythicError::Transport)?;
@@ -177,8 +167,7 @@ impl Mythic {
     }
 
     pub fn checkin_minimal<C: C2Transport>(
-        &self,
-        c2: &C,
+        &self, c2: &C,
     ) -> Result<(Uuid, RespCheckin), MythicError<C::Error>> {
         let pkt = self.build_checkin_minimal(c2)?;
         let reply = c2.checkin(&pkt).map_err(MythicError::Transport)?;
@@ -186,9 +175,7 @@ impl Mythic {
     }
 
     pub fn get_tasking<C: C2Transport>(
-        &self,
-        tasking_size: i32,
-        c2: &C,
+        &self, tasking_size: i32, c2: &C,
     ) -> Result<(Uuid, RespGetTasking), MythicError<C::Error>> {
         let pkt = self.build_get_tasking(tasking_size, c2)?;
         let reply = c2.get_tasking(&pkt).map_err(MythicError::Transport)?;
@@ -196,9 +183,7 @@ impl Mythic {
     }
 
     pub fn post_response<C: C2Transport>(
-        &self,
-        responses: Vec<TaskResponse>,
-        c2: &C,
+        &self, responses: Vec<TaskResponse>, c2: &C,
     ) -> Result<(Uuid, RespPostResponse), MythicError<C::Error>> {
         let pkt = self.build_post_response(responses, c2)?;
         let reply = c2.post_response(&pkt).map_err(MythicError::Transport)?;
@@ -206,10 +191,7 @@ impl Mythic {
     }
 
     pub fn staging_rsa<C: C2Transport>(
-        &self,
-        pub_key: &str,
-        session_id: &str,
-        c2: &C,
+        &self, pub_key: &str, session_id: &str, c2: &C,
     ) -> Result<(Uuid, RespStagingRSA), MythicError<C::Error>> {
         let pkt = self.build_staging_rsa(pub_key, session_id, c2)?;
         let reply = c2.staging_rsa(&pkt).map_err(MythicError::Transport)?;
@@ -218,20 +200,13 @@ impl Mythic {
 
     pub fn staging_translation<C: C2Transport>(
         &self,
-        session_id: &str,
-        enc_key: &str,
-        dec_key: &str,
-        crypto_type: &str,
-        next_uuid: Uuid,
-        message: &str,
-        c2: &C,
+        session_id: &str, enc_key: &str, dec_key: &str, crypto_type: &str,
+        next_uuid: Uuid, message: &str, c2: &C,
     ) -> Result<(Uuid, RespStagingTranslation), MythicError<C::Error>> {
         let pkt = self.build_staging_translation(
             session_id, enc_key, dec_key, crypto_type, next_uuid, message, c2,
         )?;
-        let reply = c2
-            .staging_translation(&pkt)
-            .map_err(MythicError::Transport)?;
+        let reply = c2.staging_translation(&pkt).map_err(MythicError::Transport)?;
         Ok(self.parse_staging_translation(&reply, c2)?)
     }
 
@@ -245,23 +220,35 @@ impl Mythic {
         iv
     }
 
+    fn crypto_for(&self, c2: &impl C2Transport) -> Option<Aes256HmacCrypto> {
+        c2.aes_psk().and_then(|b64| Aes256HmacCrypto::from_base64_key(&b64).ok())
+    }
+
     fn encode<T: serde::Serialize>(
-        &self,
-        msg: &T,
-        c2: &impl C2Transport,
+        &self, msg: &T, c2: &impl C2Transport,
     ) -> Result<String, MythicMessageError> {
-        match c2.aes_psk().and_then(|b64| Aes256HmacCrypto::from_base64_key(&b64).ok()) {
+        #[cfg(debug_assertions)]
+        {
+            let json = serde_json::to_string(msg)
+                .map_err(|_| MythicMessageError::Serialize)?;
+            let packet = match self.crypto_for(c2) {
+                Some(c) => encode_message(msg, self.agent_uuid, &c, &self.next_iv())?,
+                None => encode_message_plain(msg, self.agent_uuid)?,
+            };
+            *self.last_trace.borrow_mut() = Some(PackTrace { json, packet: packet.clone() });
+            Ok(packet)
+        }
+        #[cfg(not(debug_assertions))]
+        match self.crypto_for(c2) {
             Some(c) => encode_message(msg, self.agent_uuid, &c, &self.next_iv()),
             None => encode_message_plain(msg, self.agent_uuid),
         }
     }
 
     fn decode<T: serde::de::DeserializeOwned>(
-        &self,
-        packed: &str,
-        c2: &impl C2Transport,
+        &self, packed: &str, c2: &impl C2Transport,
     ) -> Result<(Uuid, T), MythicMessageError> {
-        match c2.aes_psk().and_then(|b64| Aes256HmacCrypto::from_base64_key(&b64).ok()) {
+        match self.crypto_for(c2) {
             Some(c) => decode_message(packed, Some(self.agent_uuid), &c),
             None => decode_message_plain(packed, Some(self.agent_uuid)),
         }

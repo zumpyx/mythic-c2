@@ -15,7 +15,7 @@ use alloc::{
     vec::Vec,
 };
 
-use base64::{Engine as _, engine::general_purpose::URL_SAFE};
+use base64::{Engine as _, engine::general_purpose::{STANDARD, URL_SAFE}};
 use serde::{Serialize, de::DeserializeOwned};
 use uuid::Uuid;
 
@@ -84,8 +84,11 @@ fn parse_packet<'a>(
 }
 
 fn base64_decode(packed: &str) -> Result<Vec<u8>, MythicMessageError> {
+    let packed = packed.trim().as_bytes();
+    // Try URL_SAFE first (what we send), then STANDARD (what some servers return)
     URL_SAFE
-        .decode(packed.trim().as_bytes())
+        .decode(packed)
+        .or_else(|_| STANDARD.decode(packed))
         .map_err(|_| MythicMessageError::Base64Decode)
 }
 

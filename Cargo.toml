@@ -25,3 +25,6 @@ cbc = { version = "0.1", default-features = false, features = ["alloc"] }
 cipher = { version = "0.4", default-features = false, features = ["alloc", "block-padding"] }
 hmac = { version = "0.12", default-features = false }
 sha2 = { version = "0.10", default-features = false }
+rsa = { version = "0.9", features = ["pem"] }
+sha1 = "0.10"
+rand = "0.8"

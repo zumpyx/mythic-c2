@@ -5,6 +5,14 @@
 //!
 //! `#![no_std]` compatible with `alloc`, suitable for embedded agent binaries.
 //!
+//! ## Debug builds
+//!
+//! In debug mode (`cargo build` without `--release`), every `build_*` call
+//! automatically captures a [`PackTrace`](Mythic::PackTrace) with the
+//! pre-encryption JSON and the wire packet.  Access it via
+//! [`mythic.last_trace()`](Mythic::last_trace).  Release builds omit this
+//! code entirely — zero overhead.
+//!
 //! ## Architecture
 //!
 //! ```text
@@ -73,7 +81,9 @@ extern crate alloc;
 pub mod c2;
 pub mod mythic;
 pub mod protocol;
+pub mod staging;
 
 pub use c2::{C2Transport, MythicError, NoopC2};
 pub use mythic::Mythic;
 pub use protocol::*;
+pub use staging::RsaKeys;

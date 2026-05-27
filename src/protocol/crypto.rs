@@ -161,6 +161,58 @@ mod tests {
     }
 
     #[test]
+    fn known_mythic_test_vector() {
+        // From the Mythic docs initial-checkin.md
+        let key_b64 = "hfN9Nk29S8LsjrE9ffbT9KONue4uozk+/TVMyrxDvvM=";
+        let payload_b64 = "ODA4NDRkMTktOWJmYy00N2Y5LWI5YWYtYzZiOTE0NGMwZmRjnZ/FcM9jnfvzAv/RYFPAvkGH8+nWHAGqxcBXSlPvq8jbCRoZrVvSSZOxNwg15q3Etz9hEb7Qunv1Sm3/8SSzp+ne4fxFObunQWzHo+7tS68csvn/uxqhiyvD83KK66xtPyGzPFlK1ZXD+wxDbo2M3iSYPEp0m5w+rQhzm5aTA6Gk6p0KSXovYvnY3TsJtdgVPlY1cFt75UzTd0iIFU8hJ+KbhyMUjJujLA6++sVrXuFps2TbAi21Z5Hr/g3/S6HAk/RSedKyXEZ6Hbbgx3gESsHa/QuVjP9Lz+Y6H9I4DtgEunCHddvruJUPqYxFGT2m8WbGc6AH6+m2ucexym0yBUryuFWfsrW6QSfcGUaVb4DWrVHtqHcXctYRNb7pOf0T/P26pFt77fgii4j0RgzTGod9QDWhSfvte+ffUWjsWKyixUffjIffj45sgDS0tvtT2Rej8gFiIpAs9F/oOH/ps5pRQeflULd1eH0GKh5WUcDwsjUa89KeOcts44J+E5+7trQ3q2q9Uy8S96DM8Nr5QryokeCD7J0goKZQPdutVXzwIvI9RT7zCQpV8CrRTpQ63L9P9IhIpyT+TDvorQd0v/I/DGb6Ev/ZUAxbyAR0JLJGjYYv1NUno5Ru2Plv1wsn82YanVF1V2LE1ii6DC7jclrkgfKN9Qhli+hIiUwSJ3YvFTT1ybHf/Fyw4ZZ6PiOIZIWgcJmHUHx//1TNvlTrmABitRpwb75yuJ6ZfYnKv/BlrQtJ9nFveNeYKP/rL7uYwPq3RY9IJRK7DBOqy53qiiysRfhimraW//sXc6duBmASW0ijZ21HKaqdVr72PMIJpEWghIznzpzEVpJqYj0uR9K/bL5W6kfIP43dyDBzGAGd87VBIcUTsIJLWaOHGPVmO3OmmtIfW34ivsX1TElTVjyrmKneQ+OTWww0RbXZdE5swvucXqC8wTuwybgwQWVPCvrBTBlv3iXgkP4dOjbvr1YZS+HpdbT5OEhwIqnDCXIqItVYx9Hz5BdfcBFbXUXk0SIQzWQj9xw+olYYQMrxomNvjuGxBkOmhTJf6yUyRK1Mp8b992FPBzLVRexYFc5FZxrI8CJeS91R3C21gb3SZH4EdKk1S3mR40O427TGYG5Hcqzqz5n0M6+cWORxUp7LKT34kDwgzHQK1h5kEoaGvGB1QDtx8GLsbfk/BqBoV2oHGJP1HHbVgYMgBTrkYObXOKFW8WyaUWcB1p/dSmW5Ww==";
+
+        let crypto = Aes256HmacCrypto::from_base64_key(key_b64).unwrap();
+
+        // The docs use STANDARD base64, not URL_SAFE
+        let packet = base64::engine::general_purpose::STANDARD
+            .decode(payload_b64.as_bytes())
+            .unwrap();
+
+        // First 36 bytes = hyphenated UUID
+        let uuid_str = core::str::from_utf8(&packet[..36]).unwrap();
+        assert_eq!(uuid_str, "80844d19-9bfc-47f9-b9af-c6b9144c0fdc");
+
+        // Rest = IV + ciphertext + HMAC
+        let ciphertext = &packet[36..];
+        let plaintext = crypto.decrypt(ciphertext).unwrap();
+        let json = core::str::from_utf8(&plaintext).unwrap();
+
+        assert!(json.contains("\"action\":\"checkin\""));
+        assert!(json.contains("\"user\":\"itsafeature\""));
+        assert!(json.contains("\"host\":\"spooky.local\""));
+        assert!(json.contains("\"pid\":7437"));
+    }
+
+    #[test]
+    fn encrypt_matches_known_mythic_ciphertext() {
+        // Same test vector, verify our encrypt = Mythic's encrypt
+        let key_b64 = "hfN9Nk29S8LsjrE9ffbT9KONue4uozk+/TVMyrxDvvM=";
+        let payload_b64 = "ODA4NDRkMTktOWJmYy00N2Y5LWI5YWYtYzZiOTE0NGMwZmRjnZ/FcM9jnfvzAv/RYFPAvkGH8+nWHAGqxcBXSlPvq8jbCRoZrVvSSZOxNwg15q3Etz9hEb7Qunv1Sm3/8SSzp+ne4fxFObunQWzHo+7tS68csvn/uxqhiyvD83KK66xtPyGzPFlK1ZXD+wxDbo2M3iSYPEp0m5w+rQhzm5aTA6Gk6p0KSXovYvnY3TsJtdgVPlY1cFt75UzTd0iIFU8hJ+KbhyMUjJujLA6++sVrXuFps2TbAi21Z5Hr/g3/S6HAk/RSedKyXEZ6Hbbgx3gESsHa/QuVjP9Lz+Y6H9I4DtgEunCHddvruJUPqYxFGT2m8WbGc6AH6+m2ucexym0yBUryuFWfsrW6QSfcGUaVb4DWrVHtqHcXctYRNb7pOf0T/P26pFt77fgii4j0RgzTGod9QDWhSfvte+ffUWjsWKyixUffjIffj45sgDS0tvtT2Rej8gFiIpAs9F/oOH/ps5pRQeflULd1eH0GKh5WUcDwsjUa89KeOcts44J+E5+7trQ3q2q9Uy8S96DM8Nr5QryokeCD7J0goKZQPdutVXzwIvI9RT7zCQpV8CrRTpQ63L9P9IhIpyT+TDvorQd0v/I/DGb6Ev/ZUAxbyAR0JLJGjYYv1NUno5Ru2Plv1wsn82YanVF1V2LE1ii6DC7jclrkgfKN9Qhli+hIiUwSJ3YvFTT1ybHf/Fyw4ZZ6PiOIZIWgcJmHUHx//1TNvlTrmABitRpwb75yuJ6ZfYnKv/BlrQtJ9nFveNeYKP/rL7uYwPq3RY9IJRK7DBOqy53qiiysRfhimraW//sXc6duBmASW0ijZ21HKaqdVr72PMIJpEWghIznzpzEVpJqYj0uR9K/bL5W6kfIP43dyDBzGAGd87VBIcUTsIJLWaOHGPVmO3OmmtIfW34ivsX1TElTVjyrmKneQ+OTWww0RbXZdE5swvucXqC8wTuwybgwQWVPCvrBTBlv3iXgkP4dOjbvr1YZS+HpdbT5OEhwIqnDCXIqItVYx9Hz5BdfcBFbXUXk0SIQzWQj9xw+olYYQMrxomNvjuGxBkOmhTJf6yUyRK1Mp8b992FPBzLVRexYFc5FZxrI8CJeS91R3C21gb3SZH4EdKk1S3mR40O427TGYG5Hcqzqz5n0M6+cWORxUp7LKT34kDwgzHQK1h5kEoaGvGB1QDtx8GLsbfk/BqBoV2oHGJP1HHbVgYMgBTrkYObXOKFW8WyaUWcB1p/dSmW5Ww==";
+
+        let crypto = Aes256HmacCrypto::from_base64_key(key_b64).unwrap();
+        let packet = base64::engine::general_purpose::STANDARD
+            .decode(payload_b64.as_bytes())
+            .unwrap();
+
+        // Known IV from the test vector (first 16 bytes after UUID)
+        let iv: [u8; 16] = packet[36..52].try_into().unwrap();
+        // Known ciphertext blob (after UUID)
+        let known_blob = &packet[36..];
+
+        // Decrypt to get the plaintext
+        let plaintext = crypto.decrypt(known_blob).unwrap();
+
+        // Re-encrypt with the SAME key + IV — must produce identical ciphertext
+        let our_blob = crypto.encrypt(&plaintext, &iv).unwrap();
+        assert_eq!(our_blob, known_blob, "encrypt must produce identical ciphertext");
+    }
+
+    #[test]
     fn different_ivs_produce_different_output() {
         let crypto = Aes256HmacCrypto::new([0x11; AES256_KEY_LEN]);
         let msg = b"hello";
