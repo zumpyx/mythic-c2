@@ -20,10 +20,15 @@ pub struct RsaKeys {
 }
 
 impl RsaKeys {
-    /// Generate a fresh 4096-bit RSA key pair.
+    /// Generate a fresh 4096-bit RSA key pair (required by Mythic).
     pub fn generate() -> Result<Self, MythicMessageError> {
+        Self::generate_with_bits(4096)
+    }
+
+    /// Generate an RSA key pair with the given bit size.
+    pub fn generate_with_bits(bits: usize) -> Result<Self, MythicMessageError> {
         let mut rng = OsRng;
-        let private = RsaPrivateKey::new(&mut rng, 4096)
+        let private = RsaPrivateKey::new(&mut rng, bits)
             .map_err(|_| MythicMessageError::Crypto)?;
         let public = RsaPublicKey::from(&private);
         let public_pem = public
@@ -58,8 +63,13 @@ impl RsaKeys {
 mod tests {
     use super::*;
 
+    // Use small key for fast tests where size doesn't matter
+    fn small_keys() -> RsaKeys {
+        RsaKeys::generate_with_bits(1024).unwrap()
+    }
+
     #[test]
-    fn generate_rsa_keys() {
+    fn generate_4096_bit_keys() {
         let keys = RsaKeys::generate().unwrap();
         assert!(!keys.public_pem.is_empty());
         assert!(keys.public_pem.contains("BEGIN PUBLIC KEY"));
@@ -67,12 +77,10 @@ mod tests {
 
     #[test]
     fn encrypt_decrypt_roundtrip() {
-        let keys = RsaKeys::generate().unwrap();
+        let keys = small_keys();
+        let session_key = b"0123456789abcdef0123456789abcdef";
 
-        // Simulate server: encrypt a session key with the public key
-        let session_key = b"0123456789abcdef0123456789abcdef"; // 32 bytes for AES-256
-
-        let pub_key = rsa::RsaPublicKey::from(keys.private.clone());
+        let pub_key = rsa::RsaPublicKey::from(&keys.private);
         let mut rng = rand::thread_rng();
         let padding = Oaep::new::<Sha1>();
         let encrypted = pub_key
@@ -80,14 +88,13 @@ mod tests {
             .unwrap();
         let encrypted_b64 = STANDARD.encode(&encrypted);
 
-        // Agent decrypts
         let decrypted = keys.decrypt_session_key(&encrypted_b64).unwrap();
         assert_eq!(decrypted, session_key);
     }
 
     #[test]
     fn decrypt_invalid_base64_fails() {
-        let keys = RsaKeys::generate().unwrap();
+        let keys = small_keys();
         assert!(matches!(
             keys.decrypt_session_key("!!!not-base64!!!"),
             Err(MythicMessageError::Crypto)
@@ -96,17 +103,15 @@ mod tests {
 
     #[test]
     fn decrypt_wrong_key_fails() {
-        let keys1 = RsaKeys::generate().unwrap();
-        let keys2 = RsaKeys::generate().unwrap();
+        let keys1 = small_keys();
+        let keys2 = small_keys();
 
-        // Encrypt with keys1's public key
-        let pub_key = rsa::RsaPublicKey::from(keys1.private.clone());
+        let pub_key = rsa::RsaPublicKey::from(&keys1.private);
         let mut rng = rand::thread_rng();
         let padding = Oaep::new::<Sha1>();
         let encrypted = pub_key.encrypt(&mut rng, padding, b"secret").unwrap();
         let encrypted_b64 = STANDARD.encode(&encrypted);
 
-        // Try to decrypt with keys2's private key — must fail
         assert!(matches!(
             keys2.decrypt_session_key(&encrypted_b64),
             Err(MythicMessageError::Crypto)
@@ -115,8 +120,8 @@ mod tests {
 
     #[test]
     fn generate_multiple_keys_are_different() {
-        let keys1 = RsaKeys::generate().unwrap();
-        let keys2 = RsaKeys::generate().unwrap();
+        let keys1 = small_keys();
+        let keys2 = small_keys();
         assert_ne!(keys1.public_pem, keys2.public_pem);
     }
 }
