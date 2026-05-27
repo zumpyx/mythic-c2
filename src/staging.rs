@@ -63,24 +63,36 @@ impl RsaKeys {
 mod tests {
     use super::*;
 
-    // Use small key for fast tests where size doesn't matter
-    fn small_keys() -> RsaKeys {
-        RsaKeys::generate_with_bits(1024).unwrap()
+    // Generate once, reuse across all tests (4096-bit RSA is slow)
+    static mut KEYS: Option<RsaKeys> = None;
+    static mut KEYS2: Option<RsaKeys> = None;
+
+    fn keys() -> &'static RsaKeys {
+        unsafe {
+            let p: *mut Option<RsaKeys> = core::ptr::addr_of_mut!(KEYS);
+            if (*p).is_none() { *p = Some(RsaKeys::generate().unwrap()); }
+            (*p).as_ref().unwrap()
+        }
+    }
+    fn keys2() -> &'static RsaKeys {
+        unsafe {
+            let p: *mut Option<RsaKeys> = core::ptr::addr_of_mut!(KEYS2);
+            if (*p).is_none() { *p = Some(RsaKeys::generate().unwrap()); }
+            (*p).as_ref().unwrap()
+        }
     }
 
     #[test]
     fn generate_4096_bit_keys() {
-        let keys = RsaKeys::generate().unwrap();
-        assert!(!keys.public_pem.is_empty());
-        assert!(keys.public_pem.contains("BEGIN PUBLIC KEY"));
+        assert!(!keys().public_pem.is_empty());
+        assert!(keys().public_pem.contains("BEGIN PUBLIC KEY"));
     }
 
     #[test]
     fn encrypt_decrypt_roundtrip() {
-        let keys = small_keys();
         let session_key = b"0123456789abcdef0123456789abcdef";
 
-        let pub_key = rsa::RsaPublicKey::from(&keys.private);
+        let pub_key = rsa::RsaPublicKey::from(&keys().private);
         let mut rng = rand::thread_rng();
         let padding = Oaep::new::<Sha1>();
         let encrypted = pub_key
@@ -88,40 +100,34 @@ mod tests {
             .unwrap();
         let encrypted_b64 = STANDARD.encode(&encrypted);
 
-        let decrypted = keys.decrypt_session_key(&encrypted_b64).unwrap();
+        let decrypted = keys().decrypt_session_key(&encrypted_b64).unwrap();
         assert_eq!(decrypted, session_key);
     }
 
     #[test]
     fn decrypt_invalid_base64_fails() {
-        let keys = small_keys();
         assert!(matches!(
-            keys.decrypt_session_key("!!!not-base64!!!"),
+            keys().decrypt_session_key("!!!not-base64!!!"),
             Err(MythicMessageError::Crypto)
         ));
     }
 
     #[test]
     fn decrypt_wrong_key_fails() {
-        let keys1 = small_keys();
-        let keys2 = small_keys();
-
-        let pub_key = rsa::RsaPublicKey::from(&keys1.private);
+        let pub_key = rsa::RsaPublicKey::from(&keys().private);
         let mut rng = rand::thread_rng();
         let padding = Oaep::new::<Sha1>();
         let encrypted = pub_key.encrypt(&mut rng, padding, b"secret").unwrap();
         let encrypted_b64 = STANDARD.encode(&encrypted);
 
         assert!(matches!(
-            keys2.decrypt_session_key(&encrypted_b64),
+            keys2().decrypt_session_key(&encrypted_b64),
             Err(MythicMessageError::Crypto)
         ));
     }
 
     #[test]
     fn generate_multiple_keys_are_different() {
-        let keys1 = small_keys();
-        let keys2 = small_keys();
-        assert_ne!(keys1.public_pem, keys2.public_pem);
+        assert_ne!(keys().public_pem, keys2().public_pem);
     }
 }
