@@ -23,7 +23,7 @@
 //! let payload_uuid = Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwrap();
 //!
 //! let agent = MythicAgent::new(payload_uuid)
-//!     .checkin(
+//!     .easy_checkin(
 //!         &c2,
 //!         vec!["10.0.0.1".into()],
 //!         Some("linux".into()),

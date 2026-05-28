@@ -60,7 +60,7 @@ fn main() {
     {
         let c2 = HttpC2 { key_b64: None };
         let agent = MythicAgent::new(payload_uuid)
-            .checkin(
+            .easy_checkin(
                 &c2,
                 vec!["10.0.0.1".into()],
                 Some("linux".into()),
@@ -79,7 +79,7 @@ fn main() {
         let key = Aes256HmacCrypto::new([0xAB; 32]).key_b64();
         let c2 = HttpC2 { key_b64: Some(key) };
         let agent = MythicAgent::new(payload_uuid)
-            .checkin(
+            .easy_checkin(
                 &c2,
                 vec!["192.168.1.100".into()],
                 Some("windows".into()),
@@ -99,7 +99,7 @@ fn main() {
 
         // 1. Checkin
         let mut agent = MythicAgent::new(payload_uuid)
-            .checkin(
+            .easy_checkin(
                 &c2,
                 vec!["10.0.0.2".into()],
                 Some("linux".into()),

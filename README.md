@@ -32,7 +32,7 @@ let c2 = HttpC2 { key_b64: None };
 
 // 1. Checkin
 let mut agent = MythicAgent::new(payload_uuid)
-    .checkin(
+    .easy_checkin(
         &c2,
         vec!["10.0.0.1".into()],
         Some("linux".into()), Some("root".into()), Some("web01".into()),
@@ -58,7 +58,7 @@ for t in &tasks.tasks {
 
 ```rust
 let mut agent = MythicAgent::new(uuid)
-    .checkin(&c2, vec!["10.0.0.1".into()], Some("linux".into()), Some("root".into()),
+    .easy_checkin(&c2, vec!["10.0.0.1".into()], Some("linux".into()), Some("root".into()),
         Some("web01".into()), Some(1337), Some("x64".into()),
         None, None, None, None, None, None)?;
 let tasks = agent.get_tasking(1, &c2)?;
