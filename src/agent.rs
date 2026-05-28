@@ -1,5 +1,6 @@
 //! High-level agent facade — build, send, and parse Mythic protocol messages.
 
+use alloc::string::String;
 use alloc::vec::Vec;
 use uuid::Uuid;
 
@@ -35,7 +36,16 @@ use crate::transport::C2Transport;
 /// let payload_uuid = Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwrap();
 ///
 /// let agent = MythicAgent::new(payload_uuid)
-///     .checkin(&c2, vec!["10.0.0.1".into()], "linux", "root", "web01", 1337, "x86_64")
+///     .checkin(
+///         &c2,
+///         vec!["10.0.0.1".into()],
+///         Some("linux".into()),
+///         Some("root".into()),
+///         Some("web01".into()),
+///         Some(1337),
+///         Some("x86_64".into()),
+///         None, None, None, None, None, None,
+///     )
 ///     .unwrap();
 /// println!("callback UUID: {}", agent.callback_uuid());
 /// ```
@@ -68,22 +78,33 @@ impl MythicAgent {
     pub fn checkin<C: C2Transport>(
         self,
         c2: &C,
-        ips: Vec<alloc::string::String>,
-        os: &str,
-        user: &str,
-        host: &str,
-        pid: u32,
-        architecture: &str,
+        ips: Vec<String>,
+        os: Option<String>,
+        user: Option<String>,
+        host: Option<String>,
+        pid: Option<u32>,
+        architecture: Option<String>,
+        domain: Option<String>,
+        integrity_level: Option<u32>,
+        external_ip: Option<String>,
+        encryption_key: Option<String>,
+        decryption_key: Option<String>,
+        process_name: Option<String>,
     ) -> MythicResult<Self> {
         let req = ReqCheckin::new(
             self.callback_uuid,
             ips,
-            Some(os.into()),
-            Some(user.into()),
-            Some(host.into()),
-            Some(pid),
-            Some(architecture.into()),
-            None, None, None, None, None, None,
+            os,
+            user,
+            host,
+            pid,
+            architecture,
+            domain,
+            integrity_level,
+            external_ip,
+            encryption_key,
+            decryption_key,
+            process_name,
         );
         self.checkin_with_req(req, c2)
     }

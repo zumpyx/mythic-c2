@@ -23,7 +23,16 @@
 //! let payload_uuid = Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwrap();
 //!
 //! let agent = MythicAgent::new(payload_uuid)
-//!     .checkin(&c2, vec!["10.0.0.1".into()], "linux", "root", "web01", 1337, "x86_64")
+//!     .checkin(
+//!         &c2,
+//!         vec!["10.0.0.1".into()],
+//!         Some("linux".into()),
+//!         Some("root".into()),
+//!         Some("web01".into()),
+//!         Some(1337),
+//!         Some("x86_64".into()),
+//!         None, None, None, None, None, None,
+//!     )
 //!     .unwrap();
 //!
 //! println!("callback UUID: {}", agent.callback_uuid());

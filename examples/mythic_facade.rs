@@ -60,7 +60,16 @@ fn main() {
     {
         let c2 = HttpC2 { key_b64: None };
         let agent = MythicAgent::new(payload_uuid)
-            .checkin(&c2, vec!["10.0.0.1".into()], "linux", "root", "web01", 1337, "x86_64")
+            .checkin(
+                &c2,
+                vec!["10.0.0.1".into()],
+                Some("linux".into()),
+                Some("root".into()),
+                Some("web01".into()),
+                Some(1337),
+                Some("x86_64".into()),
+                None, None, None, None, None, None,
+            )
             .unwrap();
         println!("Plaintext callback UUID: {}", agent.callback_uuid());
     }
@@ -70,7 +79,16 @@ fn main() {
         let key = Aes256HmacCrypto::new([0xAB; 32]).key_b64();
         let c2 = HttpC2 { key_b64: Some(key) };
         let agent = MythicAgent::new(payload_uuid)
-            .checkin(&c2, vec!["192.168.1.100".into()], "windows", "admin", "DESKTOP-XYZ", 2048, "x86_64")
+            .checkin(
+                &c2,
+                vec!["192.168.1.100".into()],
+                Some("windows".into()),
+                Some("admin".into()),
+                Some("DESKTOP-XYZ".into()),
+                Some(2048),
+                Some("x86_64".into()),
+                None, None, None, None, None, None,
+            )
             .unwrap();
         println!("Static-key callback UUID: {}", agent.callback_uuid());
     }
@@ -81,7 +99,16 @@ fn main() {
 
         // 1. Checkin
         let mut agent = MythicAgent::new(payload_uuid)
-            .checkin(&c2, vec!["10.0.0.2".into()], "linux", "operator", "implant01", 9999, "aarch64")
+            .checkin(
+                &c2,
+                vec!["10.0.0.2".into()],
+                Some("linux".into()),
+                Some("operator".into()),
+                Some("implant01".into()),
+                Some(9999),
+                Some("aarch64".into()),
+                None, None, None, None, None, None,
+            )
             .unwrap();
 
         // 2. Poll for tasks

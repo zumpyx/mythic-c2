@@ -32,7 +32,13 @@ let c2 = HttpC2 { key_b64: None };
 
 // 1. Checkin
 let mut agent = MythicAgent::new(payload_uuid)
-    .checkin(&c2, vec!["10.0.0.1".into()], "linux", "root", "web01", 1337, "x86_64")
+    .checkin(
+        &c2,
+        vec!["10.0.0.1".into()],
+        Some("linux".into()), Some("root".into()), Some("web01".into()),
+        Some(1337), Some("x86_64".into()),
+        None, None, None, None, None, None,
+    )
     .unwrap();
 
 // 2. Poll for tasks
@@ -52,7 +58,9 @@ for t in &tasks.tasks {
 
 ```rust
 let mut agent = MythicAgent::new(uuid)
-    .checkin(&c2, vec!["10.0.0.1".into()], "linux", "root", "web01", 1337, "x64")?;
+    .checkin(&c2, vec!["10.0.0.1".into()], Some("linux".into()), Some("root".into()),
+        Some("web01".into()), Some(1337), Some("x64".into()),
+        None, None, None, None, None, None)?;
 let tasks = agent.get_tasking(1, &c2)?;
 agent.post_response(vec![TaskResponse::completed(task_id, "ok")], &c2)?;
 ```
