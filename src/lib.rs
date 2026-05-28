@@ -22,9 +22,9 @@
 //! let c2 = HttpC2;
 //! let payload_uuid = Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwrap();
 //!
-//! let agent = MythicAgent::new(payload_uuid)
-//!     .easy_checkin(
-//!         &c2,
+//! let agent = MythicAgent::easy_checkin(
+//!     payload_uuid,
+//!     &c2,
 //!         vec!["10.0.0.1".into()],
 //!         Some("linux".into()),
 //!         Some("root".into()),

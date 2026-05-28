@@ -35,18 +35,18 @@ use crate::transport::C2Transport;
 /// let c2 = HttpC2;
 /// let payload_uuid = Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwrap();
 ///
-/// let agent = MythicAgent::new(payload_uuid)
-///     .easy_checkin(
-///         &c2,
-///         vec!["10.0.0.1".into()],
-///         Some("linux".into()),
-///         Some("root".into()),
-///         Some("web01".into()),
-///         Some(1337),
-///         Some("x86_64".into()),
-///         None, None, None, None, None, None,
-///     )
-///     .unwrap();
+/// let agent = MythicAgent::easy_checkin(
+///     payload_uuid,
+///     &c2,
+///     vec!["10.0.0.1".into()],
+///     Some("linux".into()),
+///     Some("root".into()),
+///     Some("web01".into()),
+///     Some(1337),
+///     Some("x86_64".into()),
+///     None, None, None, None, None, None,
+/// )
+/// .unwrap();
 /// println!("callback UUID: {}", agent.callback_uuid());
 /// ```
 #[derive(Debug)]
@@ -69,14 +69,13 @@ impl MythicAgent {
 
     // ── Core message flow ──────────────────────────────────────
 
-    /// Convenience checkin — builds a [`ReqCheckin`] internally from
-    /// individual fields.  The payload UUID is taken from `self`.
+    /// One-shot checkin — create an agent and check it in, no `new()` needed.
     ///
     /// For full control use [`checkin`](Self::checkin) with a pre-built
     /// [`ReqCheckin`].
     #[allow(clippy::too_many_arguments)]
     pub fn easy_checkin<C: C2Transport>(
-        self,
+        payload_uuid: Uuid,
         c2: &C,
         ips: Vec<String>,
         os: Option<String>,
@@ -92,7 +91,7 @@ impl MythicAgent {
         process_name: Option<String>,
     ) -> MythicResult<Self> {
         let req = ReqCheckin::new(
-            self.callback_uuid,
+            payload_uuid,
             ips,
             os,
             user,
@@ -106,7 +105,7 @@ impl MythicAgent {
             decryption_key,
             process_name,
         );
-        self.checkin(req, c2)
+        Self::new(payload_uuid).checkin(req, c2)
     }
 
     /// Perform a direct checkin (plaintext or static-key PSK).
