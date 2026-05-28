@@ -43,6 +43,15 @@ impl ReqPostResponse {
             },
         }
     }
+
+    /// Build a `post_response` from a pre-built [`AgentMessageExtras`]
+    /// (responses + delegates, SOCKS, RPFWD, edges, etc.).
+    pub fn from_extras(extras: AgentMessageExtras) -> Self {
+        Self {
+            action: ACTION_POST_RESPONSE.to_string(),
+            extras,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

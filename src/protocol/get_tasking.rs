@@ -94,6 +94,17 @@ impl ReqGetTasking {
             extras: AgentMessageExtras::default(),
         }
     }
+
+    /// Build a `get_tasking` request carrying delegates, SOCKS, RPFWD,
+    /// interactive data, edges, alerts, and/or responses.
+    pub fn with_extras(tasking_size: u32, extras: AgentMessageExtras) -> Self {
+        Self {
+            action: ACTION_GET_TASKING.to_string(),
+            tasking_size,
+            get_delegate_tasks: true,
+            extras,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
