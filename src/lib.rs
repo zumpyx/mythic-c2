@@ -22,7 +22,6 @@
 //! let c2 = HttpC2;
 //! let payload_uuid = Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwrap();
 //!
-//! let mut agent = MythicAgent::new(payload_uuid);
 //! let req = ReqCheckin::new(
 //!     payload_uuid,
 //!     vec!["10.0.0.1".into()],
@@ -33,7 +32,7 @@
 //!     Some("x86_64".into()),
 //!     None, None, None, None, None, None,
 //! );
-//! agent.checkin(req, &c2).unwrap();
+//! let agent = MythicAgent::new(payload_uuid).checkin(req, &c2).unwrap();
 //!
 //! println!("callback UUID: {}", agent.callback_uuid());
 //! ```

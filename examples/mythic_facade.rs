@@ -59,8 +59,6 @@ fn main() {
     // ── Plaintext checkin ─────────────────────────────────
     {
         let c2 = HttpC2 { key_b64: None };
-        let mut agent = MythicAgent::new(payload_uuid);
-
         let req = ReqCheckin::new(
             payload_uuid,
             vec!["10.0.0.1".into()],
@@ -71,7 +69,7 @@ fn main() {
             Some("x86_64".into()),
             None, None, None, None, None, None,
         );
-        agent.checkin(req, &c2).unwrap();
+        let agent = MythicAgent::new(payload_uuid).checkin(req, &c2).unwrap();
         println!("Plaintext callback UUID: {}", agent.callback_uuid());
     }
 
@@ -81,8 +79,6 @@ fn main() {
         let c2 = HttpC2 {
             key_b64: Some(key),
         };
-        let mut agent = MythicAgent::new(payload_uuid);
-
         let req = ReqCheckin::new(
             payload_uuid,
             vec!["192.168.1.100".into()],
@@ -93,14 +89,13 @@ fn main() {
             Some("x86_64".into()),
             None, None, None, None, None, None,
         );
-        agent.checkin(req, &c2).unwrap();
+        let agent = MythicAgent::new(payload_uuid).checkin(req, &c2).unwrap();
         println!("Static-key callback UUID: {}", agent.callback_uuid());
     }
 
     // ── Full lifecycle: get_tasking → post_response ───────
     {
         let c2 = HttpC2 { key_b64: None };
-        let mut agent = MythicAgent::new(payload_uuid);
 
         // 1. Checkin
         let req = ReqCheckin::new(
@@ -113,7 +108,7 @@ fn main() {
             Some("aarch64".into()),
             None, None, None, None, None, None,
         );
-        agent.checkin(req, &c2).unwrap();
+        let mut agent = MythicAgent::new(payload_uuid).checkin(req, &c2).unwrap();
 
         // 2. Poll for tasks
         match agent.get_tasking(1, &c2) {

@@ -31,7 +31,6 @@ let payload_uuid = Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwra
 let c2 = HttpC2 { key_b64: None };
 
 // 1. Checkin
-let mut agent = MythicAgent::new(payload_uuid);
 let req = ReqCheckin::new(
     payload_uuid,
     vec!["10.0.0.1".into()],
@@ -39,7 +38,7 @@ let req = ReqCheckin::new(
     Some(1337), Some("x86_64".into()),
     None, None, None, None, None, None,
 );
-agent.checkin(req, &c2).unwrap();
+let mut agent = MythicAgent::new(payload_uuid).checkin(req, &c2).unwrap();
 
 // 2. Poll for tasks
 let tasks = agent.get_tasking(1, &c2).unwrap();
@@ -57,8 +56,7 @@ for t in &tasks.tasks {
 **`MythicAgent` facade** — high-level checkin / get_tasking / post_response:
 
 ```rust
-let mut agent = MythicAgent::new(uuid);
-agent.checkin(req, &c2)?;
+let mut agent = MythicAgent::new(uuid).checkin(req, &c2)?;
 let tasks = agent.get_tasking(1, &c2)?;
 agent.post_response(vec![TaskResponse::completed(task_id, "ok")], &c2)?;
 ```

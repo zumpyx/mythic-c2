@@ -7,12 +7,11 @@ use crate::MythicResult;
 use crate::error::MythicError;
 use crate::protocol::checkin::{self, DirectResult};
 use crate::protocol::codec::{
-    Aes256HmacCrypto, decode_message, decode_message_plain, encode_message,
-    encode_message_plain,
+    Aes256HmacCrypto, decode_message, decode_message_plain, encode_message, encode_message_plain,
 };
 use crate::protocol::{
-    AgentExtras, AgentMessageExtras, ReqCheckin, ReqGetTasking, ReqPostResponse,
-    RespGetTasking, RespPostResponse,
+    AgentExtras, AgentMessageExtras, ReqCheckin, ReqGetTasking, ReqPostResponse, RespGetTasking,
+    RespPostResponse,
 };
 use crate::transport::C2Transport;
 
@@ -35,14 +34,13 @@ use crate::transport::C2Transport;
 /// let c2 = HttpC2;
 /// let payload_uuid = Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwrap();
 ///
-/// let mut agent = MythicAgent::new(payload_uuid);
 /// let req = ReqCheckin::new(
 ///     payload_uuid,
 ///     vec!["10.0.0.1".into()],
 ///     Some("linux".into()),
 ///     None, None, None, None, None, None, None, None, None, None,
 /// );
-/// agent.checkin(req, &c2).unwrap();
+/// let agent = MythicAgent::new(payload_uuid).checkin(req, &c2).unwrap();
 /// println!("callback UUID: {}", agent.callback_uuid());
 /// ```
 #[derive(Debug)]
@@ -70,11 +68,7 @@ impl MythicAgent {
     /// The mode is determined automatically from the transport
     /// via [`C2Transport::aes_psk`].  `req.uuid` must be the payload UUID;
     /// it is used both in the JSON body and the wire framing.
-    pub fn checkin<C: C2Transport>(
-        &mut self,
-        req: ReqCheckin,
-        c2: &C,
-    ) -> MythicResult<()> {
+    pub fn checkin<C: C2Transport>(mut self, req: ReqCheckin, c2: &C) -> MythicResult<Self> {
         let payload_uuid = req.uuid;
 
         let needs_crypto = c2.aes_psk().is_some();
@@ -84,13 +78,16 @@ impl MythicAgent {
             [0u8; 16]
         };
 
-        let DirectResult { callback_uuid, crypto, .. } =
-            checkin::direct_checkin(c2, &req, payload_uuid, &iv)?;
+        let DirectResult {
+            callback_uuid,
+            crypto,
+            ..
+        } = checkin::direct_checkin(c2, &req, payload_uuid, &iv)?;
 
         self.callback_uuid = callback_uuid;
         self.crypto = crypto;
 
-        Ok(())
+        Ok(self)
     }
 
     /// Poll for new tasks from the Mythic server (no extras).
