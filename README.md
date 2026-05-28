@@ -17,7 +17,7 @@ struct HttpC2 { key_b64: Option<String> }
 impl C2Transport for HttpC2 {
     type Error = String;
 
-    fn get_encryption_key(&self) -> Option<String>        { self.key_b64.clone() }
+    fn get_aes_psk(&self) -> Option<String>        { self.key_b64.clone() }
     fn random_iv(&self) -> Result<[u8; 16], Self::Error> {
         // Use a real TRNG in production — zero IV is for plaintext only.
         Ok([0u8; 16])
@@ -31,7 +31,7 @@ let payload_uuid = Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwra
 let c2 = HttpC2 { key_b64: None };
 
 // 1. Checkin
-let mut agent = MythicAgent::easy_checkin(
+let agent = MythicAgent::easy_checkin(
     payload_uuid,
     &c2,
         vec!["10.0.0.1".into()],
@@ -57,7 +57,7 @@ for t in &tasks.tasks {
 **`MythicAgent` facade** — high-level checkin / get_tasking / post_response:
 
 ```rust
-let mut agent = MythicAgent::easy_checkin(
+let agent = MythicAgent::easy_checkin(
     uuid, &c2, vec!["10.0.0.1".into()], Some("linux".into()), Some("root".into()),
     Some("web01".into()), Some(1337), Some("x64".into()),
     None, None, None, None, None, None)?;
@@ -92,7 +92,7 @@ use mythic::C2Transport;
 impl C2Transport for HttpTransport {
     type Error = &'static str;
 
-    fn get_encryption_key(&self) -> Option<String>               { Some("q83v...".into()) }
+    fn get_aes_psk(&self) -> Option<String>               { Some("q83v...".into()) }
     fn random_iv(&self) -> Result<[u8; 16], Self::Error> { /* TRNG */ Ok([0u8; 16]) }
 
     fn checkin(&self, pkt: &str)       -> Result<String, Self::Error> { ... }
@@ -101,16 +101,16 @@ impl C2Transport for HttpTransport {
 }
 ```
 
-`get_encryption_key()` and `encrypted_exchange_check()` default to `None` / `false` — override
+`get_aes_psk()` and `encrypted_exchange_check()` default to `None` / `false` — override
 only when needed.
 
 ## Three Communication Scenarios
 
 | Scenario | C2 config | Flow |
 |---|---|---|
-| Plaintext | `get_encryption_key = None` | `checkin` → `get_tasking` → `post_response` |
-| Static key | `get_encryption_key = Some(key)` | AES-256-CBC-HMAC encrypted versions of the above |
-| RSA EKE | `get_encryption_key = Some(key)`, `exchange = true` | RSA staging → checkin (types defined, RSA crypto not yet implemented) |
+| Plaintext | `get_aes_psk = None` | `checkin` → `get_tasking` → `post_response` |
+| Static key | `get_aes_psk = Some(key)` | AES-256-CBC-HMAC encrypted versions of the above |
+| RSA EKE | `get_aes_psk = Some(key)`, `exchange = true` | RSA staging → checkin (types defined, RSA crypto not yet implemented) |
 
 See [`examples/mythic_facade.rs`](examples/mythic_facade.rs) for the full agent lifecycle.
 

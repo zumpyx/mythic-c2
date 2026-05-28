@@ -19,8 +19,8 @@ use crate::transport::C2Transport;
 /// Post-checkin phase — holds the callback UUID assigned by Mythic.
 ///
 /// Encryption state is kept on the [`C2Transport`] via
-/// [`encryption_key`](C2Transport::encryption_key) /
-/// [`set_encryption_key`](C2Transport::set_encryption_key) so the same agent
+/// [`get_aes_psk`](C2Transport::get_aes_psk) /
+/// [`set_aes_psk`](C2Transport::set_aes_psk) so the same agent
 /// can switch transports without duplicating key state.
 ///
 /// # Examples
@@ -114,12 +114,12 @@ impl MythicAgent {
     /// Perform a direct checkin (plaintext or static-key PSK).
     ///
     /// The mode is determined automatically from the transport
-    /// via [`C2Transport::encryption_key`].  `req.uuid` must be the payload
+    /// via [`C2Transport::get_aes_psk`].  `req.uuid` must be the payload
     /// UUID; it is used both in the JSON body and the wire framing.
     pub fn checkin<C: C2Transport>(mut self, req: ReqCheckin, c2: &C) -> MythicResult<Self> {
         let payload_uuid = req.uuid;
 
-        let needs_crypto = c2.get_encryption_key().is_some();
+        let needs_crypto = c2.get_aes_psk().is_some();
         let iv = if needs_crypto {
             c2.random_iv().map_err(MythicError::transport)?
         } else {
@@ -136,7 +136,7 @@ impl MythicAgent {
 
     /// Poll for new tasks from the Mythic server (no extras).
     pub fn get_tasking<C: C2Transport>(
-        &mut self,
+        &self,
         tasking_size: u32,
         c2: &C,
     ) -> MythicResult<RespGetTasking> {
@@ -146,14 +146,14 @@ impl MythicAgent {
     /// Poll for new tasks, carrying delegates, SOCKS, RPFWD, interactive data,
     /// edges, alerts, and/or responses alongside the request.
     pub fn get_tasking_with<C: C2Transport>(
-        &mut self,
+        &self,
         tasking_size: u32,
         c2: &C,
         extras: AgentMessageExtras,
     ) -> MythicResult<RespGetTasking> {
         let req = ReqGetTasking::with_extras(tasking_size, extras);
 
-        if let Some(key_b64) = c2.get_encryption_key() {
+        if let Some(key_b64) = c2.get_aes_psk() {
             let crypto = Aes256HmacCrypto::from_base64_key(&key_b64)?;
             let iv = c2.random_iv().map_err(MythicError::transport)?;
             let packed = encode_message(&req, self.callback_uuid, &crypto, &iv)?;
@@ -173,7 +173,7 @@ impl MythicAgent {
     /// [`crate::protocol::TaskResponse::completed`] or construct custom
     /// responses with hooking-feature data.
     pub fn post_response<C: C2Transport>(
-        &mut self,
+        &self,
         responses: Vec<crate::protocol::TaskResponse>,
         c2: &C,
     ) -> MythicResult<RespPostResponse> {
@@ -186,7 +186,7 @@ impl MythicAgent {
     /// `shared` is the [`AgentExtras`] portion — it does **not** contain
     /// `responses` (those are the first argument).
     pub fn post_response_with<C: C2Transport>(
-        &mut self,
+        &self,
         responses: Vec<crate::protocol::TaskResponse>,
         c2: &C,
         shared: AgentExtras,
@@ -194,7 +194,7 @@ impl MythicAgent {
         let extras = AgentMessageExtras { responses, shared };
         let req = ReqPostResponse::from_extras(extras);
 
-        if let Some(key_b64) = c2.get_encryption_key() {
+        if let Some(key_b64) = c2.get_aes_psk() {
             let crypto = Aes256HmacCrypto::from_base64_key(&key_b64)?;
             let iv = c2.random_iv().map_err(MythicError::transport)?;
             let packed = encode_message(&req, self.callback_uuid, &crypto, &iv)?;
