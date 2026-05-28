@@ -89,7 +89,7 @@ impl MythicAgent {
         domain: Option<String>,
         integrity_level: Option<u32>,
         external_ip: Option<String>,
-        encryption_key: Option<String>,
+        pub_encryption_key: Option<String>,
         decryption_key: Option<String>,
         process_name: Option<String>,
     ) -> MythicResult<Self> {
@@ -104,7 +104,7 @@ impl MythicAgent {
             domain,
             integrity_level,
             external_ip,
-            encryption_key,
+            pub_encryption_key,
             decryption_key,
             process_name,
         );
@@ -119,7 +119,7 @@ impl MythicAgent {
     pub fn checkin<C: C2Transport>(mut self, req: ReqCheckin, c2: &C) -> MythicResult<Self> {
         let payload_uuid = req.uuid;
 
-        let needs_crypto = c2.encryption_key().is_some();
+        let needs_crypto = c2.get_encryption_key().is_some();
         let iv = if needs_crypto {
             c2.random_iv().map_err(MythicError::transport)?
         } else {
@@ -153,7 +153,7 @@ impl MythicAgent {
     ) -> MythicResult<RespGetTasking> {
         let req = ReqGetTasking::with_extras(tasking_size, extras);
 
-        if let Some(key_b64) = c2.encryption_key() {
+        if let Some(key_b64) = c2.get_encryption_key() {
             let crypto = Aes256HmacCrypto::from_base64_key(&key_b64)?;
             let iv = c2.random_iv().map_err(MythicError::transport)?;
             let packed = encode_message(&req, self.callback_uuid, &crypto, &iv)?;
@@ -194,7 +194,7 @@ impl MythicAgent {
         let extras = AgentMessageExtras { responses, shared };
         let req = ReqPostResponse::from_extras(extras);
 
-        if let Some(key_b64) = c2.encryption_key() {
+        if let Some(key_b64) = c2.get_encryption_key() {
             let crypto = Aes256HmacCrypto::from_base64_key(&key_b64)?;
             let iv = c2.random_iv().map_err(MythicError::transport)?;
             let packed = encode_message(&req, self.callback_uuid, &crypto, &iv)?;

@@ -27,7 +27,7 @@ use crate::protocol::codec::AES256_IV_LEN;
 ///
 /// # Key lifecycle
 ///
-/// | Scenario | `encryption_key()` | `set_encryption_key()` |
+/// | Scenario | `get_encryption_key()` | `set_encryption_key()` |
 /// |---|---|---|
 /// | Plaintext | returns `None` | never called |
 /// | Static PSK | returns build-time key | never called |
@@ -41,7 +41,7 @@ pub trait C2Transport {
     /// Return `None` for plaintext or before key negotiation.
     /// After RSA / translation staging, return the negotiated key
     /// set via [`set_encryption_key`](Self::set_encryption_key).
-    fn encryption_key(&self) -> Option<String> {
+    fn get_encryption_key(&self) -> Option<String> {
         None
     }
 
@@ -50,6 +50,11 @@ pub trait C2Transport {
     /// Called after RSA or translation staging completes.  Static-PSK and
     /// plaintext transports can leave the default (no-op).
     fn set_encryption_key(&mut self, _key: &str) {}
+
+    /// Whether any encryption key is currently set.
+    fn is_encrypted(&self) -> bool {
+        self.get_encryption_key().is_some()
+    }
 
     /// Whether this transport requires an encrypted key exchange (RSA or
     /// translation staging) before checking in.
@@ -63,7 +68,7 @@ pub trait C2Transport {
     /// Generate a cryptographically random 16-byte IV for AES-CBC.
     ///
     /// **Must** return fresh random bytes on every call when
-    /// [`encryption_key`](Self::encryption_key) returns `Some(_)`.
+    /// [`get_encryption_key`](Self::get_encryption_key) returns `Some(_)`.
     /// Predictable IVs in CBC mode break semantic security.
     fn random_iv(&self) -> Result<[u8; AES256_IV_LEN], Self::Error>;
 

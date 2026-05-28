@@ -23,7 +23,7 @@ struct HttpC2 {
 impl C2Transport for HttpC2 {
     type Error = String;
 
-    fn encryption_key(&self) -> Option<String> {
+    fn get_encryption_key(&self) -> Option<String> {
         self.key_b64.clone()
     }
 
