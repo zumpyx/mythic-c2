@@ -1,115 +1,138 @@
-//! Mythic 门面使用示例 — 三种场景，加密由 C2 决定。
+//! Example demonstrating the `#![no_std]` mythic-c2 library — full agent lifecycle.
 //!
-//! `Mythic` 只持有 UUID。每次 `build_*` / `parse_*` 时从 C2 读 `aes_psk()`，
-//! 有 key 就加密、没有就明文。IV 由 Mythic 内部计数器自动生成。
+//! The library crate compiles as `#![no_std]` (`cargo build`).  This example
+//! binary links std only for `fn main()` — the API surface shown here uses
+//! only `alloc` / `core` types and works identically in a true no_std implant.
 
-use mythic::{Aes256HmacCrypto, C2Transport, CheckinInfo, Mythic};
+use mythic::{Aes256HmacCrypto, C2Transport, MythicAgent, ReqCheckin, TaskResponse};
 use uuid::Uuid;
 
-// ── C2 实现: 加密配置是 C2 自身的数据 ──
+// ── C2 transport stub ──────────────────────────────────────
 
+/// A fake HTTP transport for demonstration purposes.
+/// In a real implant this would make actual HTTP(S) requests.
 struct HttpC2 {
     key_b64: Option<String>,
-    needs_staging: bool,
 }
-impl HttpC2 {
-    fn send(&self, _p: &str) -> Result<String, String> { Ok(String::new()) }
-}
+
 impl C2Transport for HttpC2 {
     type Error = String;
-    fn aes_psk(&self) -> Option<String> { self.key_b64.clone() }
-    fn encrypted_exchange_check(&self) -> bool { self.needs_staging }
-    fn checkin(&self, p: &str) -> Result<String, Self::Error> { self.send(p) }
-    fn get_tasking(&self, p: &str) -> Result<String, Self::Error> { self.send(p) }
-    fn post_response(&self, p: &str) -> Result<String, Self::Error> { self.send(p) }
+
+    fn aes_psk(&self) -> Option<String> {
+        self.key_b64.clone()
+    }
+
+    fn random_iv(&self) -> Result<[u8; 16], Self::Error> {
+        let iv = [0u8; 16];
+        // In a real implant, fill with cryptographically random bytes
+        // (e.g. `getrandom::getrandom(&mut iv)` or a platform TRNG).
+        // Zero IV is only safe for plaintext transports.
+        Ok(iv)
+    }
+
+    fn checkin(&self, pkt: &str) -> Result<String, Self::Error> {
+        eprintln!("[HTTP] checkin  → {} bytes", pkt.len());
+        // Real impl: POST to <server>/agent_message
+        Ok(String::new())
+    }
+
+    fn get_tasking(&self, pkt: &str) -> Result<String, Self::Error> {
+        eprintln!("[HTTP] get_task → {} bytes", pkt.len());
+        // Real impl: GET <server>/agent_message with base64 body
+        Ok(String::new())
+    }
+
+    fn post_response(&self, pkt: &str) -> Result<String, Self::Error> {
+        eprintln!("[HTTP] post_resp → {} bytes", pkt.len());
+        Ok(String::new())
+    }
 }
 
 fn main() {
-    let agent_uuid = Uuid::parse_str("f0f0f0f0-1111-2222-3333-444444444444").unwrap();
-    let mythic = Mythic::new(agent_uuid);
+    let payload_uuid = Uuid::parse_str("f0f0f0f0-1111-2222-3333-444444444444").unwrap();
 
-    // ═══════════════════════════════════════════════════════
-    // 场景 1: 明文 — C2.aes_psk() = None
-    // ═══════════════════════════════════════════════════════
-    println!("═══ 场景 1: 明文 ═══\n");
+    // ── Plaintext checkin ─────────────────────────────────
+    {
+        let c2 = HttpC2 { key_b64: None };
+        let mut agent = MythicAgent::new(payload_uuid);
+        agent.debug = true;
 
-    let c2 = HttpC2 { key_b64: None, needs_staging: false };
+        let req = ReqCheckin::new(
+            payload_uuid,
+            vec!["10.0.0.1".into()],
+            Some("linux".into()),
+            Some("root".into()),
+            Some("web01".into()),
+            Some(1337),
+            Some("x86_64".into()),
+            None, // domain
+            None, // integrity_level
+            None, // external_ip
+            None, // encryption_key
+            None, // decryption_key
+            None, // process_name
+        );
+        agent.checkin(req, &c2).unwrap();
+        println!("{}", agent.debug_dump());
+        println!("Plaintext callback UUID: {}", agent.callback_uuid());
+    }
 
-    let pkt = mythic.build_checkin(
-        CheckinInfo {
-            os: Some("linux".into()),
-            host: Some("web01".into()),
-            user: Some("root".into()),
-            pid: Some(1337),
-            ips: vec!["10.0.0.1".into()],
-            ..Default::default()
-        },
-        &c2,  // ← 每次传 C2, 内部读 aes_psk()
-    ).unwrap();
-    println!("→ 明文 checkin:\n  {pkt}\n");
+    // ── Static-key checkin ────────────────────────────────
+    {
+        let key = Aes256HmacCrypto::new([0xAB; 32]).key_b64();
+        let c2 = HttpC2 {
+            key_b64: Some(key),
+        };
+        let mut agent = MythicAgent::new(payload_uuid);
 
-    let pkt = mythic.build_get_tasking(5, &c2).unwrap();
-    println!("→ 明文 get_tasking:\n  {pkt}\n");
+        let req = ReqCheckin::new(
+            payload_uuid,
+            vec!["192.168.1.100".into()],
+            Some("windows".into()),
+            Some("admin".into()),
+            Some("DESKTOP-XYZ".into()),
+            Some(2048),
+            Some("x86_64".into()),
+            None, None, None, None, None, None,
+        );
+        agent.checkin(req, &c2).unwrap();
+        println!("Static-key callback UUID: {}", agent.callback_uuid());
+    }
 
-    // ═══════════════════════════════════════════════════════
-    // 场景 2: 静态密钥 — C2.aes_psk() = Some(base64key)
-    // ═══════════════════════════════════════════════════════
-    println!("═══ 场景 2: 静态密钥 ═══\n");
+    // ── Full lifecycle: get_tasking → post_response ───────
+    {
+        let c2 = HttpC2 { key_b64: None };
+        let mut agent = MythicAgent::new(payload_uuid);
 
-    let c2 = HttpC2 {
-        key_b64: Some(Aes256HmacCrypto::new([0xAB; 32]).key_b64()),
-        needs_staging: false,
-    };
+        // 1. Checkin
+        let req = ReqCheckin::new(
+            payload_uuid,
+            vec!["10.0.0.2".into()],
+            Some("linux".into()),
+            Some("operator".into()),
+            Some("implant01".into()),
+            Some(9999),
+            Some("aarch64".into()),
+            None, None, None, None, None, None,
+        );
+        agent.checkin(req, &c2).unwrap();
 
-    let pkt = mythic.build_checkin(
-        CheckinInfo {
-            os: Some("windows".into()),
-            host: Some("DESKTOP-XYZ".into()),
-            user: Some("admin".into()),
-            pid: Some(2048),
-            domain: Some("CORP".into()),
-            ips: vec!["192.168.1.100".into()],
-            ..Default::default()
-        },
-        &c2,  // ← 有 aes_psk(), 自动 AES 加密
-    ).unwrap();
-    println!("→ 加密 checkin:\n  {pkt}\n");
+        // 2. Poll for tasks
+        match agent.get_tasking(1, &c2) {
+            Ok(resp) => {
+                for task in &resp.tasks {
+                    println!("Received task {}: {}", task.id, task.command);
 
-    let pkt = mythic.build_get_tasking(5, &c2).unwrap();
-    println!("→ 加密 get_tasking:\n  {pkt}\n");
+                    // 3. Execute and respond
+                    let _ = agent.post_response(
+                        vec![TaskResponse::completed(task.id, "task executed successfully")],
+                        &c2,
+                    );
+                }
+            }
+            Err(e) => eprintln!("get_tasking failed: {e}"),
+        }
+    }
 
-    // ═══════════════════════════════════════════════════════
-    // 场景 3: RSA 密钥交换 — C2 有 AESPSK, 需要 staging
-    // ═══════════════════════════════════════════════════════
-    println!("═══ 场景 3: RSA 密钥交换 ═══\n");
-
-    let c2 = HttpC2 {
-        key_b64: Some(Aes256HmacCrypto::new([0x55; 32]).key_b64()),
-        needs_staging: true,
-    };
-
-    let pkt = mythic.build_staging_rsa(
-        "-----BEGIN PUBLIC KEY-----\nagent-rsa-pub-key\n-----END PUBLIC KEY-----",
-        "staging-session-1",
-        &c2,  // ← 用 AESPSK 加密
-    ).unwrap();
-    println!("→ staging_rsa (AESPSK 加密):\n  {pkt}\n");
-
-    // 实际使用时:
-    // let reply = c2.staging_rsa(&pkt).unwrap();
-    // let (_, resp) = mythic.parse_staging_rsa(&reply, &c2).unwrap();
-    // mythic.set_agent_uuid(resp.uuid);
-    // // RSA-decrypt session_key, update C2's key_b64 for the new key
-
-    // ═══════════════════════════════════════════════════════
-    // 组合 API: 一行 build→send→parse
-    // ═══════════════════════════════════════════════════════
-    println!("═══ 组合 API (一行版) ═══\n");
-
-    // let (_, resp) = mythic.checkin(info, &c2)?;
-    // let (_, tasks) = mythic.get_tasking(5, &c2)?;
-    // let (_, ack) = mythic.post_response(results, &c2)?;
-    // let (_, stage) = mythic.staging_rsa(pub_key, sid, &c2)?;
-
-    println!("Done.");
+    println!("All demo scenarios complete.");
 }

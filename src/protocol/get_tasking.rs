@@ -1,17 +1,29 @@
-//! Task and response types, including all hooking features (file transfer,
-//! credentials, artifacts, processes, keylogs, etc.).
+//! Get-tasking message types — polling for new tasks, plus task/response/hooking
+//! types shared with [`super::post_response`].
 
 use alloc::{
-    string::String,
+    string::{String, ToString},
     vec::Vec,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use uuid::Uuid;
 
-use super::peer::{
-    AlertMessage, EdgeMessage, InteractiveMessage, ReversePortForwardMessage, SocksMessage,
+use super::{
+    ACTION_GET_TASKING,
+    peer::{
+        AlertMessage, DelegateMessage, EdgeMessage, InteractiveMessage, ReversePortForwardMessage,
+        SocksMessage,
+    },
 };
+
+fn default_tasking_size() -> u32 {
+    1
+}
+
+fn default_get_delegate_tasks() -> bool {
+    true
+}
 
 fn default_is_screenshot() -> bool {
     false
@@ -21,7 +33,89 @@ fn is_false(value: &bool) -> bool {
     !*value
 }
 
-// ── Task / Response core ──────────────────────────────────
+// ── Shared extras ─────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+pub struct AgentExtras {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub delegates: Vec<DelegateMessage>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub socks: Vec<SocksMessage>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub rpfwd: Vec<ReversePortForwardMessage>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub interactive: Vec<InteractiveMessage>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub alerts: Vec<AlertMessage>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub edges: Vec<EdgeMessage>,
+}
+
+/// Extras that an agent can attach to any request message.
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+pub struct AgentMessageExtras {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub responses: Vec<TaskResponse>,
+    #[serde(flatten)]
+    pub shared: AgentExtras,
+}
+
+/// Extras that Mythic can attach to any response message.
+pub type AgentResponseExtras = AgentExtras;
+
+// ── Get-tasking request / response ────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ReqGetTasking {
+    pub action: String,
+    #[serde(default = "default_tasking_size")]
+    pub tasking_size: u32,
+    #[serde(default = "default_get_delegate_tasks")]
+    pub get_delegate_tasks: bool,
+    #[serde(flatten)]
+    pub extras: AgentMessageExtras,
+}
+
+impl ReqGetTasking {
+    pub fn new(tasking_size: u32) -> Self {
+        Self {
+            action: ACTION_GET_TASKING.to_string(),
+            tasking_size,
+            get_delegate_tasks: true,
+            extras: AgentMessageExtras::default(),
+        }
+    }
+
+    pub fn with_delegate_tasks(tasking_size: u32, get_delegate_tasks: bool) -> Self {
+        Self {
+            action: ACTION_GET_TASKING.to_string(),
+            tasking_size,
+            get_delegate_tasks,
+            extras: AgentMessageExtras::default(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RespGetTasking {
+    pub action: String,
+    #[serde(default)]
+    pub tasks: Vec<TaskMessage>,
+    #[serde(flatten)]
+    pub extras: AgentResponseExtras,
+}
+
+impl RespGetTasking {
+    pub fn new(tasks: Vec<TaskMessage>) -> Self {
+        Self {
+            action: ACTION_GET_TASKING.to_string(),
+            tasks,
+            extras: AgentResponseExtras::default(),
+        }
+    }
+}
+
+// ── TaskMessage ────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 pub struct TaskMessage {
@@ -31,200 +125,11 @@ pub struct TaskMessage {
     pub id: Uuid,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
-pub struct ResponseReceipt {
-    pub task_id: Uuid,
-    pub status: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub file_id: Option<Uuid>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub error: Option<String>,
-}
+// ── TaskResponse and hooking feature types ─────────────────
 
-// ── File transfer ─────────────────────────────────────────
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
-pub struct TaskDownload {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub total_chunks: Option<u32>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub chunk_size: Option<u32>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub filename: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub full_path: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub host: Option<String>,
-    #[serde(default = "default_is_screenshot", skip_serializing_if = "is_false")]
-    pub is_screenshot: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub file_id: Option<Uuid>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub chunk_num: Option<u32>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub chunk_data: Option<String>,
-}
-
-/// Agent-to-Mythic file chunk request (agent pulls a file from the server).
-#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
-pub struct TaskUpload {
-    pub chunk_size: u32,
-    pub file_id: Uuid,
-    /// 1-based chunk number the agent is requesting.
-    pub chunk_num: u32,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub full_path: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub host: Option<String>,
-}
-
-// ── Hooking features within TaskResponse ───────────────────
-
-/// File/directory entry for file browser results.  `files` holds children
-/// (recursive); leaf files have `files: []` or missing.
-#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
-pub struct FileBrowserEntry {
-    pub is_file: bool,
-    pub name: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub permissions: Option<Value>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub access_time: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub modify_time: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub size: Option<i64>,
-    // ── parent-only fields ─────────────────────────
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub host: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub parent_path: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub success: Option<bool>,
-    #[serde(default, skip_serializing_if = "is_false")]
-    pub update_deleted: bool,
-    #[serde(default, skip_serializing_if = "is_false")]
-    pub set_as_user_output: bool,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub files: Vec<FileBrowserEntry>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
-pub struct Credential {
-    /// One of: `plaintext`, `certificate`, `hash`, `key`, `ticket`, `cookie`.
-    pub credential_type: String,
-    pub credential: String,
-    pub account: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub realm: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub comment: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
-pub struct Artifact {
-    pub base_artifact: String,
-    pub artifact: String,
-    #[serde(default)]
-    pub needs_cleanup: bool,
-    #[serde(default)]
-    pub resolved: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
-pub struct ProcessEntry {
-    pub process_id: i64,
-    pub name: String,
-    pub host: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub parent_process_id: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub architecture: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub bin_path: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub user: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub command_line: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub integrity_level: Option<i32>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub start_time: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub description: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub signer: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub protected_process_level: Option<i32>,
-    #[serde(default, skip_serializing_if = "is_false")]
-    pub update_deleted: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
-pub struct CommandAction {
-    /// `"add"` or `"remove"`.
-    pub action: String,
-    pub cmd: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
-pub struct KeylogEntry {
-    pub keystrokes: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub user: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub window_title: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
-pub struct TokenEntry {
-    pub token_id: i64,
-    pub host: String,
-    pub user: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub groups: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub thread_id: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub process_id: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub default_dacl: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub session_id: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub restricted: Option<bool>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub capabilities: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub logon_sid: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub integrity_level_sid: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub app_container_number: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub app_container_sid: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub privileges: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub handle: Option<i64>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
-pub struct CallbackToken {
-    /// `"add"` or `"remove"`.
-    pub action: String,
-    pub host: String,
-    pub token_id: i64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
-pub struct RemovedFileInfo {
-    pub host: String,
-    pub path: String,
-}
-
-// ── TaskResponse ───────────────────────────────────────────
-
+/// Task output sent by the agent.  All fields are optional except `task_id` so
+/// an agent can send back only what it needs (user output, file chunk, SOCKS
+/// data, etc.).
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 pub struct TaskResponse {
     pub task_id: Uuid,
@@ -298,15 +203,259 @@ impl TaskResponse {
     }
 }
 
+// ── File transfer types ────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+pub struct TaskDownload {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub total_chunks: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub chunk_size: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub filename: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub full_path: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub host: Option<String>,
+    #[serde(default = "default_is_screenshot", skip_serializing_if = "is_false")]
+    pub is_screenshot: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub file_id: Option<Uuid>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub chunk_num: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub chunk_data: Option<String>,
+}
+
+/// Agent-to-Mythic file chunk request (agent pulls a file from the server).
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+pub struct TaskUpload {
+    pub chunk_size: u32,
+    pub file_id: Uuid,
+    /// 1-based chunk number the agent is requesting.
+    pub chunk_num: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub full_path: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub host: Option<String>,
+}
+
+// ── Hooking feature types ──────────────────────────────────
+
+/// File/directory entry for file browser results.
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+pub struct FileBrowserEntry {
+    pub is_file: bool,
+    pub name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub permissions: Option<Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub access_time: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub modify_time: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub size: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub host: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent_path: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub success: Option<bool>,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub update_deleted: bool,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub set_as_user_output: bool,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub files: Vec<FileBrowserEntry>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+pub struct Credential {
+    pub credential_type: String,
+    pub credential: String,
+    pub account: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub realm: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub comment: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+pub struct Artifact {
+    pub base_artifact: String,
+    pub artifact: String,
+    #[serde(default)]
+    pub needs_cleanup: bool,
+    #[serde(default)]
+    pub resolved: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+pub struct ProcessEntry {
+    pub process_id: i64,
+    pub name: String,
+    pub host: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent_process_id: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub architecture: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bin_path: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub user: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub command_line: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub integrity_level: Option<i32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub start_time: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub signer: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub protected_process_level: Option<i32>,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub update_deleted: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+pub struct CommandAction {
+    pub action: String,
+    pub cmd: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+pub struct KeylogEntry {
+    pub keystrokes: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub user: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub window_title: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+pub struct TokenEntry {
+    pub token_id: i64,
+    pub host: String,
+    pub user: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub groups: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub thread_id: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub process_id: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub default_dacl: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session_id: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub restricted: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub capabilities: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub logon_sid: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub integrity_level_sid: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub app_container_number: Option<i64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub app_container_sid: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub privileges: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub handle: Option<i64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+pub struct CallbackToken {
+    pub action: String,
+    pub host: String,
+    pub token_id: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
+pub struct RemovedFileInfo {
+    pub host: String,
+    pub path: String,
+}
+
 // ── Tests ──────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use alloc::{string::ToString, vec};
+
     use crate::protocol::peer::{
         AlertMessage, EdgeMessage, InteractiveMessage, ReversePortForwardMessage, SocksMessage,
     };
-    use alloc::{string::ToString, vec};
+
+    #[test]
+    fn get_tasking_defaults_are_correct() {
+        let req = ReqGetTasking::new(9);
+        let req_without = ReqGetTasking::with_delegate_tasks(3, false);
+
+        assert_eq!(req.action, ACTION_GET_TASKING);
+        assert_eq!(req.tasking_size, 9);
+        assert!(req.get_delegate_tasks);
+        assert!(!req_without.get_delegate_tasks);
+    }
+
+    #[test]
+    fn extras_roundtrip() {
+        let extras = AgentMessageExtras::default();
+        assert_eq!(
+            serde_json::from_str::<AgentMessageExtras>(&serde_json::to_string(&extras).unwrap())
+                .unwrap(),
+            extras
+        );
+
+        let resp_extras = AgentResponseExtras::default();
+        assert_eq!(
+            serde_json::from_str::<AgentResponseExtras>(
+                &serde_json::to_string(&resp_extras).unwrap()
+            )
+            .unwrap(),
+            resp_extras
+        );
+    }
+
+    #[test]
+    fn resp_get_tasking_roundtrip() {
+        let uuid = Uuid::nil();
+        let resp = RespGetTasking {
+            action: ACTION_GET_TASKING.to_string(),
+            tasks: vec![TaskMessage {
+                command: "ls".to_string(),
+                parameters: "-la".to_string(),
+                timestamp: 1.0,
+                id: uuid,
+            }],
+            extras: AgentResponseExtras::default(),
+        };
+        assert_eq!(
+            serde_json::from_str::<RespGetTasking>(&serde_json::to_string(&resp).unwrap()).unwrap(),
+            resp
+        );
+    }
+
+    #[test]
+    fn task_response_default_is_empty() {
+        let resp = TaskResponse::default();
+        assert!(resp.user_output.is_none());
+        assert!(resp.download.is_none());
+        assert!(resp.upload.is_none());
+        assert!(resp.file_browser.is_none());
+        assert!(resp.credentials.is_empty());
+        assert!(resp.artifacts.is_empty());
+        assert!(resp.processes.is_empty());
+        assert!(resp.commands.is_empty());
+        assert!(resp.keylogs.is_empty());
+        assert!(resp.tokens.is_empty());
+        assert!(resp.callback_tokens.is_empty());
+        assert!(resp.removed_files.is_empty());
+    }
 
     #[test]
     fn task_models_roundtrip() {
@@ -370,10 +519,8 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(
-            serde_json::from_str::<FileBrowserEntry>(
-                &serde_json::to_string(&file_entry).unwrap()
-            )
-            .unwrap(),
+            serde_json::from_str::<FileBrowserEntry>(&serde_json::to_string(&file_entry).unwrap())
+                .unwrap(),
             file_entry
         );
 
@@ -468,18 +615,6 @@ mod tests {
             removed
         );
 
-        let receipt = ResponseReceipt {
-            task_id: uuid,
-            status: "sent".to_string(),
-            file_id: Some(Uuid::from_u128(1)),
-            error: Some("none".to_string()),
-        };
-        assert_eq!(
-            serde_json::from_str::<ResponseReceipt>(&serde_json::to_string(&receipt).unwrap())
-                .unwrap(),
-            receipt
-        );
-
         let chunk_download = TaskDownload {
             total_chunks: None,
             chunk_size: None,
@@ -538,6 +673,7 @@ mod tests {
                 server_id: 2,
                 exit: true,
                 data: None,
+                port: None,
             }],
             interactive: vec![InteractiveMessage {
                 task_id: uuid,
@@ -546,28 +682,9 @@ mod tests {
             }],
         };
         assert_eq!(
-            serde_json::from_str::<TaskResponse>(
-                &serde_json::to_string(&full_response).unwrap()
-            )
-            .unwrap(),
+            serde_json::from_str::<TaskResponse>(&serde_json::to_string(&full_response).unwrap())
+                .unwrap(),
             full_response
         );
-    }
-
-    #[test]
-    fn task_response_default_is_empty() {
-        let resp = TaskResponse::default();
-        assert!(resp.user_output.is_none());
-        assert!(resp.download.is_none());
-        assert!(resp.upload.is_none());
-        assert!(resp.file_browser.is_none());
-        assert!(resp.credentials.is_empty());
-        assert!(resp.artifacts.is_empty());
-        assert!(resp.processes.is_empty());
-        assert!(resp.commands.is_empty());
-        assert!(resp.keylogs.is_empty());
-        assert!(resp.tokens.is_empty());
-        assert!(resp.callback_tokens.is_empty());
-        assert!(resp.removed_files.is_empty());
     }
 }

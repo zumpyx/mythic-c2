@@ -9,7 +9,9 @@ use uuid::Uuid;
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
 pub struct DelegateMessage {
     pub message: String,
-    pub c2_profile: String,
+    /// Required in agent-to-Mythic delegate messages; absent in Mythic-to-agent responses.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub c2_profile: Option<String>,
     pub uuid: Uuid,
     #[serde(default, skip_serializing_if = "Option::is_none", alias = "new_uuid")]
     pub mythic_uuid: Option<Uuid>,
@@ -75,6 +77,10 @@ pub struct ReversePortForwardMessage {
     pub exit: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub data: Option<String>,
+    /// Optional — required when the agent listens on multiple rpfwd ports so
+    /// Mythic can route data to the correct remote IP:Port.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub port: Option<u32>,
 }
 
 pub type RpfwdMessage = ReversePortForwardMessage;
@@ -98,7 +104,7 @@ mod tests {
 
         let delegate = DelegateMessage {
             message: "msg".to_string(),
-            c2_profile: "p2p".to_string(),
+            c2_profile: Some("p2p".to_string()),
             uuid,
             mythic_uuid: Some(next_uuid),
         };
@@ -146,6 +152,7 @@ mod tests {
             server_id: 3,
             exit: true,
             data: None,
+            port: Some(80),
         };
         assert_eq!(
             serde_json::from_str::<ReversePortForwardMessage>(
@@ -182,5 +189,10 @@ mod tests {
             serde_json::from_str(r#"{"server_id":2,"exit":false,"data":"YQ"}"#).unwrap();
         assert!(!rpfwd_json.exit);
         assert_eq!(rpfwd_json.data.as_deref(), Some("YQ"));
+        assert!(rpfwd_json.port.is_none());
+
+        let rpfwd_with_port: ReversePortForwardMessage =
+            serde_json::from_str(r#"{"server_id":3,"exit":true,"data":"","port":445}"#).unwrap();
+        assert_eq!(rpfwd_with_port.port, Some(445));
     }
 }

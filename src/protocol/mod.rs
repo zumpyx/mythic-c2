@@ -1,51 +1,42 @@
-//! Protocol layer — message types, wire framing, and AES-256-CBC-HMAC crypto.
+//! Protocol layer — message types, wire codec, and AES-256-CBC-HMAC crypto.
 //!
 //! This module provides the low-level building blocks:
 //!
 //! | Module | Purpose |
 //! |---|---|
-//! | [`framing`] | Wire format: UUID prefix + base64 + optional AES encryption |
-//! | [`crypto`] | `MythicCrypto` trait + `Aes256HmacCrypto` implementation |
-//! | [`checkin`] | `ReqCheckin` / `RespCheckin` message types |
-//! | [`tasking`] | `ReqGetTasking` / `RespGetTasking` / `ReqPostResponse` / `RespPostResponse` |
-//! | [`task`] | `TaskMessage`, `TaskResponse`, hooking feature types |
-//! | [`staging`] | RSA and translation staging message types |
+//! | [`codec`] | Wire format + `MythicCrypto` trait + `Aes256HmacCrypto` |
+//! | [`checkin`] | Checkin message types (plaintext / static-key) + staging data types |
+//! | [`get_tasking`] | `ReqGetTasking` / `RespGetTasking`, `TaskMessage`, `TaskResponse`, hooking types |
+//! | [`post_response`] | `ReqPostResponse` / `RespPostResponse`, `ResponseReceipt` |
 //! | [`peer`] | P2P, SOCKS, reverse port forward, interactive, alerts, edges |
-//! | [`error`] | `MythicMessageError` enum |
 
 pub mod checkin;
-pub mod crypto;
-pub mod error;
-pub mod framing;
+pub mod codec;
+pub mod get_tasking;
 pub mod peer;
-pub mod staging;
-pub mod task;
-pub mod tasking;
+pub mod post_response;
 
-pub use checkin::{CheckinInfo, CheckinInfoSource, ReqCheckin, RespCheckin};
-pub use crypto::{Aes256HmacCrypto, MythicCrypto};
-pub use error::MythicMessageError;
-pub use framing::{
-    MYTHIC_UUID_BIN_LEN, MYTHIC_UUID_LEN, MythicMessage, decode_message, decode_message_plain,
+pub use checkin::{
+    DirectResult, ReqCheckin, ReqStagingRSA, ReqStagingTranslation, ReqTranslationStaging,
+    RespCheckin, RespStagingRSA, RespStagingTranslation, RespTranslationStaging,
+    direct_checkin,
+};
+pub use codec::{
+    AES256_HMAC_LEN, AES256_IV_LEN, AES256_KEY_LEN, Aes256HmacCrypto, MYTHIC_UUID_LEN,
+    MythicCrypto, MythicMessage, decode_message, decode_message_plain,
     encode_message, encode_message_plain,
 };
 pub use peer::{
     AlertMessage, DelegateMessage, EdgeMessage, InteractiveMessage, P2PMessage,
     ReversePortForwardMessage, RpfwdMessage, SocksMessage,
 };
-pub use staging::{
-    ReqStagingRSA, ReqStagingTranslation, ReqTranslationStaging, RespStagingRSA,
-    RespStagingTranslation, RespTranslationStaging,
+pub use get_tasking::{
+    AgentExtras, AgentMessageExtras, AgentResponseExtras, Artifact, CallbackToken,
+    CommandAction, Credential, FileBrowserEntry, KeylogEntry, ProcessEntry, ReqGetTasking,
+    RemovedFileInfo, RespGetTasking, TaskDownload, TaskMessage, TaskResponse, TaskUpload,
+    TokenEntry,
 };
-pub use task::{
-    Artifact, CallbackToken, CommandAction, Credential, FileBrowserEntry, KeylogEntry,
-    ProcessEntry, RemovedFileInfo, ResponseReceipt, TaskDownload, TaskMessage, TaskResponse,
-    TaskUpload, TokenEntry,
-};
-pub use tasking::{
-    AgentExtras, AgentMessageExtras, AgentResponseExtras, ReqGetTasking, ReqPostResponse,
-    RespGetTasking, RespPostResponse,
-};
+pub use post_response::{ReqPostResponse, RespPostResponse, ResponseReceipt};
 
 pub const ACTION_CHECKIN: &str = "checkin";
 pub const ACTION_STAGING_RSA: &str = "staging_rsa";
