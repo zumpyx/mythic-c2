@@ -329,7 +329,7 @@ pub fn direct_checkin<C: C2Transport>(
     };
 
     if resp.status != "success" {
-        return Err(MythicError::Protocol(alloc::format!(
+        return Err(MythicError::protocol(alloc::format!(
             "checkin rejected: status={}",
             resp.status
         )));

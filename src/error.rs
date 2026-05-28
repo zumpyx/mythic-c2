@@ -14,21 +14,26 @@ use core::fmt;
 /// |------|---------|---------|
 /// | 1 | `Serialize` | JSON serialization failed |
 /// | 2 | `Deserialize` | JSON deserialization failed |
-/// | 3 | `Base64` | Base64 decode failed (tried URL_SAFE then STANDARD) |
-/// | 4 | `Utf8` | UUID portion of the wire packet is not valid UTF-8 |
+/// | 3 | `Base64` | Base64 decode failed |
+/// | 4 | `Utf8` | UUID portion is not valid UTF-8 |
 /// | 5 | `InvalidPacket` | Packet too short or malformed |
 /// | 6 | `InvalidUuid` | UUID string is not valid |
 /// | 7 | `UuidMismatch` | UUID in response does not match expected |
-/// | 8 | `Crypto` | Cryptographic operation failed (encrypt, decrypt, HMAC, key) |
+/// | 8 | `Crypto` | Cryptographic operation failed |
 /// | 9 | `Timeout` | Transport timed out |
-/// | 10 | `ConnectionFailed` | Could not reach server (refused, unreachable) |
+/// | 10 | `ConnectionFailed` | TCP/TLS connection failed |
 /// | 11 | `DnsFailed` | DNS resolution failed |
 /// | 12 | `TlsFailed` | TLS handshake or certificate error |
-/// | 13 | `HttpStatus` | HTTP-level error — carries the status code |
-/// | 14 | `AuthFailed` | Authentication or key mismatch |
-/// | 15 | `ServerRejected` | Server returned a rejection response |
-/// | 16 | `Transport` | Transport fallback — carries a message string |
-/// | 17 | `Protocol` | Protocol fallback — carries a message string |
+/// | 13 | `HttpStatus` | HTTP error — carries the status code |
+/// | 14 | `ServerError` | Server returned 5xx — carries the status code |
+/// | 15 | `AuthFailed` | Authentication or key mismatch |
+/// | 16 | `ServerRejected` | Server returned a rejection response |
+/// | 17 | `NotCheckedIn` | get_tasking / post_response called before checkin |
+/// | 18 | `PayloadTooLarge` | Message exceeds server size limit |
+/// | 19 | `KeyExchangeFailed` | RSA / translation staging negotiation failed |
+/// | 20 | `RateLimited` | Client or server rate limiting |
+/// | 21 | `Transport` | Transport fallback — carries a message string |
+/// | 22 | `Protocol` | Protocol fallback — carries a message string |
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[repr(u8)]
 pub enum MythicError {
@@ -50,14 +55,19 @@ pub enum MythicError {
     DnsFailed = 11,
     TlsFailed = 12,
     HttpStatus(u16) = 13,
+    ServerError(u16) = 14,
 
     // ── Protocol ──
-    AuthFailed = 14,
-    ServerRejected = 15,
+    AuthFailed = 15,
+    ServerRejected = 16,
+    NotCheckedIn = 17,
+    PayloadTooLarge = 18,
+    KeyExchangeFailed = 19,
+    RateLimited = 20,
 
     // ── Fallback ──
-    Transport(String) = 16,
-    Protocol(String) = 17,
+    Transport(String) = 21,
+    Protocol(String) = 22,
 }
 
 impl MythicError {
@@ -77,17 +87,26 @@ impl MythicError {
             Self::DnsFailed => 11,
             Self::TlsFailed => 12,
             Self::HttpStatus(_) => 13,
-            Self::AuthFailed => 14,
-            Self::ServerRejected => 15,
-            Self::Transport(_) => 16,
-            Self::Protocol(_) => 17,
+            Self::ServerError(_) => 14,
+            Self::AuthFailed => 15,
+            Self::ServerRejected => 16,
+            Self::NotCheckedIn => 17,
+            Self::PayloadTooLarge => 18,
+            Self::KeyExchangeFailed => 19,
+            Self::RateLimited => 20,
+            Self::Transport(_) => 21,
+            Self::Protocol(_) => 22,
         }
     }
 
-    /// Build a `Transport` variant from anything that implements `Display`.
-    /// Use this when no specific transport variant fits.
+    /// Build a `Transport` variant from any `Display` error.
     pub fn transport<E: fmt::Display>(e: E) -> Self {
-        Self::Transport(alloc::format!("{}", e))
+        Self::Transport(alloc::format!("{e}"))
+    }
+
+    /// Build a `Protocol` variant from any `Display` error.
+    pub fn protocol<E: fmt::Display>(e: E) -> Self {
+        Self::Protocol(alloc::format!("{e}"))
     }
 }
 
