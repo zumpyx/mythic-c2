@@ -9,7 +9,6 @@
 //! use mythic::C2Transport;
 //!
 //! impl C2Transport for HttpC2 {
-//!     fn random_iv(&self) -> Result<[u8; 16], MythicError> { /* TRNG */ Ok([0u8; 16]) }
 //!     fn checkin(&self, packed: &str) -> Result<String, MythicError> { ... }
 //!     fn get_tasking(&self, packed: &str) -> Result<String, MythicError> { ... }
 //!     fn post_response(&self, packed: &str) -> Result<String, MythicError> { ... }
@@ -20,9 +19,9 @@ use crate::error::MythicError;
 use crate::protocol::codec::AES256_IV_LEN;
 use alloc::string::String;
 
-/// Transport layer — required: `random_iv`, `checkin`, `get_tasking`,
-/// `post_response`.  Optional: `get_aes_psk`, `set_aes_psk`,
-/// `encrypted_exchange_check`.
+/// Transport layer — required: `checkin`, `get_tasking`, `post_response`.
+/// Optional: `get_aes_psk`, `set_aes_psk`, `encrypted_exchange_check`,
+/// `random_iv` (has a default that errors — encrypting transports MUST override it).
 ///
 /// The transport owns the encryption key so an agent can switch transports
 /// (HTTP → DNS fallback, etc.) without duplicating key state.
@@ -49,9 +48,14 @@ pub trait C2Transport {
 
     /// Generate a cryptographically random 16-byte IV for AES-CBC.
     ///
-    /// **Must** return fresh random bytes on every call when
-    /// [`get_aes_psk`](Self::get_aes_psk) returns `Some(_)`.
-    fn random_iv(&self) -> Result<[u8; AES256_IV_LEN], MythicError>;
+    /// **Must** be overridden when [`get_aes_psk`](Self::get_aes_psk) returns
+    /// `Some(_)`.  The default returns [`MythicError::Crypto`] to fail fast.
+    ///
+    /// Plaintext transports (`get_aes_psk = None`) can keep the default — it
+    /// will never be called.
+    fn random_iv(&self) -> Result<[u8; AES256_IV_LEN], MythicError> {
+        Err(MythicError::Crypto)
+    }
 
     /// Deliver a message to the server's checkin endpoint.
     fn checkin(&self, packed: &str) -> Result<String, MythicError>;

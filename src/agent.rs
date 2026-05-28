@@ -30,7 +30,6 @@ use crate::transport::C2Transport;
 ///
 /// # struct HttpC2;
 /// # impl C2Transport for HttpC2 {
-/// #     fn random_iv(&self) -> Result<[u8; 16], MythicError> { Ok([0u8; 16]) }
 /// #     fn checkin(&self, p: &str) -> Result<String, MythicError> { Ok(String::new()) }
 /// #     fn get_tasking(&self, p: &str) -> Result<String, MythicError> { Ok(String::new()) }
 /// #     fn post_response(&self, p: &str) -> Result<String, MythicError> { Ok(String::new()) }

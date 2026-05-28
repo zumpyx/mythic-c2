@@ -16,10 +16,6 @@ struct HttpC2 { key_b64: Option<String> }
 
 impl C2Transport for HttpC2 {
     fn get_aes_psk(&self) -> Option<String>        { self.key_b64.clone() }
-    fn random_iv(&self) -> Result<[u8; 16], MythicError> {
-        // Use a real TRNG in production — zero IV is for plaintext only.
-        Ok([0u8; 16])
-    }
     fn checkin(&self, p: &str)       -> Result<String, MythicError> { /* POST ... */ Ok(String::new()) }
     fn get_tasking(&self, p: &str)   -> Result<String, MythicError> { /* GET  ... */ Ok(String::new()) }
     fn post_response(&self, p: &str) -> Result<String, MythicError> { /* POST ... */ Ok(String::new()) }
@@ -87,9 +83,11 @@ required:
 ```rust
 use mythic::{C2Transport, MythicError};
 
+// 加密 transport 必须覆盖 random_iv 提供真随机 IV
+//  fn random_iv(&self) -> Result<[u8; 16], MythicError> { getrandom::getrandom(&mut iv)?; Ok(iv) }
+
 impl C2Transport for HttpTransport {
     fn get_aes_psk(&self) -> Option<String>               { Some("q83v...".into()) }
-    fn random_iv(&self) -> Result<[u8; 16], MythicError> { /* TRNG */ Ok([0u8; 16]) }
 
     fn checkin(&self, pkt: &str)       -> Result<String, MythicError> { ... }
     fn get_tasking(&self, pkt: &str)   -> Result<String, MythicError> { self.checkin(pkt) }

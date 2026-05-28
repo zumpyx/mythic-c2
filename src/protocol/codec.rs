@@ -134,7 +134,6 @@ fn base64_encode(data: &[u8]) -> String {
     URL_SAFE.encode(data)
 }
 
-
 // ── Frame / unframe ────────────────────────────────────
 
 fn frame(uuid: Uuid, body: &[u8]) -> Vec<u8> {
@@ -211,7 +210,6 @@ mod tests {
 
     use super::super::checkin::ReqCheckin;
 
-
     // ── AES crypto tests ─────────────────────────────
 
     #[test]
@@ -285,7 +283,10 @@ mod tests {
         assert_eq!(decoded_req.user.as_deref(), Some("itsafeature"));
         assert_eq!(decoded_req.host.as_deref(), Some("spooky.local"));
         assert_eq!(decoded_req.pid, Some(7437));
-        assert_eq!(decoded_req.os.as_deref(), Some("Version 13.4 (Build 22F66)"));
+        assert_eq!(
+            decoded_req.os.as_deref(),
+            Some("Version 13.4 (Build 22F66)")
+        );
 
         // Step 2: re-encode with a fresh IV, then decode — roundtrip
         let fresh_iv = [0xAA; 16];
