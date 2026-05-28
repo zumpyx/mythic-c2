@@ -56,17 +56,17 @@ fn main() {
     {
         let c2 = HttpC2 { key_b64: None };
         let agent = MythicAgent::easy_checkin(
-                payload_uuid,
-                &c2,
-                vec!["10.0.0.1".into()],
-                Some("linux".into()),
-                Some("root".into()),
-                Some("web01".into()),
-                Some(1337),
-                Some("x86_64".into()),
-                None, None, None, None, None, None,
-            )
-            .unwrap();
+            payload_uuid,
+            &c2,
+            vec!["10.0.0.1".into()],
+            Some("linux".into()),
+            Some("root".into()),
+            Some("web01".into()),
+            Some(1337),
+            Some("x86_64".into()),
+            None, None, None, None, None, None,
+        )
+        .unwrap();
         println!("Plaintext callback UUID: {}", agent.callback_uuid());
     }
 
@@ -75,17 +75,17 @@ fn main() {
         let key = Aes256HmacCrypto::new([0xAB; 32]).key_b64();
         let c2 = HttpC2 { key_b64: Some(key) };
         let agent = MythicAgent::easy_checkin(
-                payload_uuid,
-                &c2,
-                vec!["192.168.1.100".into()],
-                Some("windows".into()),
-                Some("admin".into()),
-                Some("DESKTOP-XYZ".into()),
-                Some(2048),
-                Some("x86_64".into()),
-                None, None, None, None, None, None,
-            )
-            .unwrap();
+            payload_uuid,
+            &c2,
+            vec!["192.168.1.100".into()],
+            Some("windows".into()),
+            Some("admin".into()),
+            Some("DESKTOP-XYZ".into()),
+            Some(2048),
+            Some("x86_64".into()),
+            None, None, None, None, None, None,
+        )
+        .unwrap();
         println!("Static-key callback UUID: {}", agent.callback_uuid());
     }
 
@@ -97,15 +97,15 @@ fn main() {
         let agent = MythicAgent::easy_checkin(
             payload_uuid,
             &c2,
-                vec!["10.0.0.2".into()],
-                Some("linux".into()),
-                Some("operator".into()),
-                Some("implant01".into()),
-                Some(9999),
-                Some("aarch64".into()),
-                None, None, None, None, None, None,
-            )
-            .unwrap();
+            vec!["10.0.0.2".into()],
+            Some("linux".into()),
+            Some("operator".into()),
+            Some("implant01".into()),
+            Some(9999),
+            Some("aarch64".into()),
+            None, None, None, None, None, None,
+        )
+        .unwrap();
 
         // 2. Poll for tasks
         match agent.get_tasking(1, &c2) {

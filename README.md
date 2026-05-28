@@ -28,12 +28,12 @@ let c2 = HttpC2 { key_b64: None };
 let agent = MythicAgent::easy_checkin(
     payload_uuid,
     &c2,
-        vec!["10.0.0.1".into()],
-        Some("linux".into()), Some("root".into()), Some("web01".into()),
-        Some(1337), Some("x86_64".into()),
-        None, None, None, None, None, None,
-    )
-    .unwrap();
+    vec!["10.0.0.1".into()],
+    Some("linux".into()), Some("root".into()), Some("web01".into()),
+    Some(1337), Some("x86_64".into()),
+    None, None, None, None, None, None,
+)
+.unwrap();
 
 // 2. Poll for tasks
 let tasks = agent.get_tasking(1, &c2).unwrap();
@@ -77,8 +77,9 @@ let json = serde_json::to_vec(&req)?;
 
 ## C2Transport Trait
 
-Implement for any transport (HTTP, DNS, WebSocket, etc.). Five methods
-required:
+Implement for any transport (HTTP, DNS, WebSocket, etc.). Three methods
+required; `get_aes_psk`, `random_iv`, and `encrypted_exchange_check`
+have sensible defaults:
 
 ```rust
 use mythic::{C2Transport, MythicError};

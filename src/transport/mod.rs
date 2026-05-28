@@ -36,7 +36,7 @@ pub trait C2Transport {
     /// Store a dynamically negotiated session key (base64-encoded).
     ///
     /// Called after RSA or translation staging completes.
-    fn set_aes_psk(&mut self, _key: &str) -> Option<bool> {
+    fn set_aes_psk(&mut self, _key: &str) -> Option<String> {
         None
     }
 
