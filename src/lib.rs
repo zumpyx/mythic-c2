@@ -8,16 +8,15 @@
 //! ## Quick Example
 //!
 //! ```no_run
-//! use mythic::{C2Transport, MythicAgent};
+//! use mythic::{C2Transport, MythicAgent, MythicError};
 //! use uuid::Uuid;
 //!
 //! # struct HttpC2;
 //! # impl C2Transport for HttpC2 {
-//! #     type Error = &'static str;
-//! #     fn random_iv(&self) -> Result<[u8; 16], Self::Error> { Ok([0u8; 16]) }
-//! #     fn checkin(&self, p: &str) -> Result<String, Self::Error> { Ok(String::new()) }
-//! #     fn get_tasking(&self, p: &str) -> Result<String, Self::Error> { Ok(String::new()) }
-//! #     fn post_response(&self, p: &str) -> Result<String, Self::Error> { Ok(String::new()) }
+//! #     fn random_iv(&self) -> Result<[u8; 16], MythicError> { Ok([0u8; 16]) }
+//! #     fn checkin(&self, p: &str) -> Result<String, MythicError> { Ok(String::new()) }
+//! #     fn get_tasking(&self, p: &str) -> Result<String, MythicError> { Ok(String::new()) }
+//! #     fn post_response(&self, p: &str) -> Result<String, MythicError> { Ok(String::new()) }
 //! # }
 //! let c2 = HttpC2;
 //! let payload_uuid = Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwrap();

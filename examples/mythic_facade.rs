@@ -9,7 +9,7 @@
 //! response.  A real transport must return valid base64-encoded Mythic wire
 //! packets.  See the unit tests for working encode/decode roundtrips.
 
-use mythic::{Aes256HmacCrypto, C2Transport, MythicAgent, TaskResponse};
+use mythic::{Aes256HmacCrypto, C2Transport, MythicAgent, MythicError, TaskResponse};
 use uuid::Uuid;
 
 // ── C2 transport stub ──────────────────────────────────────
@@ -21,13 +21,11 @@ struct HttpC2 {
 }
 
 impl C2Transport for HttpC2 {
-    type Error = String;
-
     fn get_aes_psk(&self) -> Option<String> {
         self.key_b64.clone()
     }
 
-    fn random_iv(&self) -> Result<[u8; 16], Self::Error> {
+    fn random_iv(&self) -> Result<[u8; 16], MythicError> {
         let iv = [0u8; 16];
         // In a real implant, fill with cryptographically random bytes
         // (e.g. `getrandom::getrandom(&mut iv)` or a platform TRNG).
@@ -35,19 +33,19 @@ impl C2Transport for HttpC2 {
         Ok(iv)
     }
 
-    fn checkin(&self, pkt: &str) -> Result<String, Self::Error> {
+    fn checkin(&self, pkt: &str) -> Result<String, MythicError> {
         eprintln!("[HTTP] checkin  → {} bytes", pkt.len());
         // Real impl: POST to <server>/agent_message
         Ok(String::new())
     }
 
-    fn get_tasking(&self, pkt: &str) -> Result<String, Self::Error> {
+    fn get_tasking(&self, pkt: &str) -> Result<String, MythicError> {
         eprintln!("[HTTP] get_task → {} bytes", pkt.len());
         // Real impl: GET <server>/agent_message with base64 body
         Ok(String::new())
     }
 
-    fn post_response(&self, pkt: &str) -> Result<String, Self::Error> {
+    fn post_response(&self, pkt: &str) -> Result<String, MythicError> {
         eprintln!("[HTTP] post_resp → {} bytes", pkt.len());
         Ok(String::new())
     }

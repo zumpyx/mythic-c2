@@ -8,23 +8,21 @@ AES-256-CBC-HMAC encryption, and a transport abstraction layer.
 ## Quick Start
 
 ```rust
-use mythic::{Aes256HmacCrypto, C2Transport, MythicAgent, TaskResponse};
+use mythic::{Aes256HmacCrypto, C2Transport, MythicAgent, MythicError, TaskResponse};
 use uuid::Uuid;
 
 // Implement C2Transport for your channel (HTTP, DNS, WebSocket, etc.)
 struct HttpC2 { key_b64: Option<String> }
 
 impl C2Transport for HttpC2 {
-    type Error = String;
-
     fn get_aes_psk(&self) -> Option<String>        { self.key_b64.clone() }
-    fn random_iv(&self) -> Result<[u8; 16], Self::Error> {
+    fn random_iv(&self) -> Result<[u8; 16], MythicError> {
         // Use a real TRNG in production — zero IV is for plaintext only.
         Ok([0u8; 16])
     }
-    fn checkin(&self, p: &str)       -> Result<String, Self::Error> { /* POST ... */ Ok(String::new()) }
-    fn get_tasking(&self, p: &str)   -> Result<String, Self::Error> { /* GET  ... */ Ok(String::new()) }
-    fn post_response(&self, p: &str) -> Result<String, Self::Error> { /* POST ... */ Ok(String::new()) }
+    fn checkin(&self, p: &str)       -> Result<String, MythicError> { /* POST ... */ Ok(String::new()) }
+    fn get_tasking(&self, p: &str)   -> Result<String, MythicError> { /* GET  ... */ Ok(String::new()) }
+    fn post_response(&self, p: &str) -> Result<String, MythicError> { /* POST ... */ Ok(String::new()) }
 }
 
 let payload_uuid = Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwrap();
@@ -87,17 +85,15 @@ Implement for any transport (HTTP, DNS, WebSocket, etc.). Five methods
 required:
 
 ```rust
-use mythic::C2Transport;
+use mythic::{C2Transport, MythicError};
 
 impl C2Transport for HttpTransport {
-    type Error = &'static str;
-
     fn get_aes_psk(&self) -> Option<String>               { Some("q83v...".into()) }
-    fn random_iv(&self) -> Result<[u8; 16], Self::Error> { /* TRNG */ Ok([0u8; 16]) }
+    fn random_iv(&self) -> Result<[u8; 16], MythicError> { /* TRNG */ Ok([0u8; 16]) }
 
-    fn checkin(&self, pkt: &str)       -> Result<String, Self::Error> { ... }
-    fn get_tasking(&self, pkt: &str)   -> Result<String, Self::Error> { self.checkin(pkt) }
-    fn post_response(&self, pkt: &str) -> Result<String, Self::Error> { self.checkin(pkt) }
+    fn checkin(&self, pkt: &str)       -> Result<String, MythicError> { ... }
+    fn get_tasking(&self, pkt: &str)   -> Result<String, MythicError> { self.checkin(pkt) }
+    fn post_response(&self, pkt: &str) -> Result<String, MythicError> { self.checkin(pkt) }
 }
 ```
 

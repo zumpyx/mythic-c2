@@ -9,14 +9,14 @@
 //! use mythic::C2Transport;
 //!
 //! impl C2Transport for HttpC2 {
-//!     type Error = &'static str;
-//!     fn random_iv(&self) -> Result<[u8; 16], Self::Error> { /* TRNG */ Ok([0u8; 16]) }
-//!     fn checkin(&self, packed: &str) -> Result<String, Self::Error> { ... }
-//!     fn get_tasking(&self, packed: &str) -> Result<String, Self::Error> { ... }
-//!     fn post_response(&self, packed: &str) -> Result<String, Self::Error> { ... }
+//!     fn random_iv(&self) -> Result<[u8; 16], MythicError> { /* TRNG */ Ok([0u8; 16]) }
+//!     fn checkin(&self, packed: &str) -> Result<String, MythicError> { ... }
+//!     fn get_tasking(&self, packed: &str) -> Result<String, MythicError> { ... }
+//!     fn post_response(&self, packed: &str) -> Result<String, MythicError> { ... }
 //! }
 //! ```
 
+use crate::error::MythicError;
 use crate::protocol::codec::AES256_IV_LEN;
 use alloc::string::String;
 
@@ -27,9 +27,6 @@ use alloc::string::String;
 /// The transport owns the encryption key so an agent can switch transports
 /// (HTTP → DNS fallback, etc.) without duplicating key state.
 pub trait C2Transport {
-    /// Error type for transport failures (timeout, DNS resolution, etc.).
-    type Error: core::fmt::Display;
-
     /// AES-256 pre-shared key, base64-encoded.
     ///
     /// Return `None` for plaintext or before key negotiation.
@@ -54,14 +51,14 @@ pub trait C2Transport {
     ///
     /// **Must** return fresh random bytes on every call when
     /// [`get_aes_psk`](Self::get_aes_psk) returns `Some(_)`.
-    fn random_iv(&self) -> Result<[u8; AES256_IV_LEN], Self::Error>;
+    fn random_iv(&self) -> Result<[u8; AES256_IV_LEN], MythicError>;
 
     /// Deliver a message to the server's checkin endpoint.
-    fn checkin(&self, packed: &str) -> Result<String, Self::Error>;
+    fn checkin(&self, packed: &str) -> Result<String, MythicError>;
 
     /// Deliver a message to the server's get_tasking endpoint.
-    fn get_tasking(&self, packed: &str) -> Result<String, Self::Error>;
+    fn get_tasking(&self, packed: &str) -> Result<String, MythicError>;
 
     /// Deliver a message to the server's post_response endpoint.
-    fn post_response(&self, packed: &str) -> Result<String, Self::Error>;
+    fn post_response(&self, packed: &str) -> Result<String, MythicError>;
 }

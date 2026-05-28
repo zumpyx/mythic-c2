@@ -316,13 +316,13 @@ pub fn direct_checkin<C: C2Transport>(
     let (resp, packed, response) = if let Some(key_b64) = c2.get_aes_psk() {
         let crypto = Aes256HmacCrypto::from_base64_key(&key_b64)?;
         let packed = encode_message(req, payload_uuid, &crypto, iv)?;
-        let response = c2.checkin(&packed).map_err(MythicError::transport)?;
+        let response = c2.checkin(&packed)?;
         let (_, resp): (Uuid, RespCheckin) =
             decode_message(&response, Some(payload_uuid), &crypto)?;
         (resp, packed, response)
     } else {
         let packed = encode_message_plain(req, payload_uuid)?;
-        let response = c2.checkin(&packed).map_err(MythicError::transport)?;
+        let response = c2.checkin(&packed)?;
         let (_, resp): (Uuid, RespCheckin) =
             decode_message_plain(&response, Some(payload_uuid))?;
         (resp, packed, response)

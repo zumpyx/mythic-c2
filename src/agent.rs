@@ -5,7 +5,6 @@ use alloc::vec::Vec;
 use uuid::Uuid;
 
 use crate::MythicResult;
-use crate::error::MythicError;
 use crate::protocol::checkin::{self, DirectResult};
 use crate::protocol::codec::{
     Aes256HmacCrypto, decode_message, decode_message_plain, encode_message, encode_message_plain,
@@ -26,16 +25,15 @@ use crate::transport::C2Transport;
 /// # Examples
 ///
 /// ```no_run
-/// use mythic::{C2Transport, MythicAgent};
+/// use mythic::{C2Transport, MythicAgent, MythicError};
 /// use uuid::Uuid;
 ///
 /// # struct HttpC2;
 /// # impl C2Transport for HttpC2 {
-/// #     type Error = &'static str;
-/// #     fn random_iv(&self) -> Result<[u8; 16], Self::Error> { Ok([0u8; 16]) }
-/// #     fn checkin(&self, p: &str) -> Result<String, Self::Error> { Ok(String::new()) }
-/// #     fn get_tasking(&self, p: &str) -> Result<String, Self::Error> { Ok(String::new()) }
-/// #     fn post_response(&self, p: &str) -> Result<String, Self::Error> { Ok(String::new()) }
+/// #     fn random_iv(&self) -> Result<[u8; 16], MythicError> { Ok([0u8; 16]) }
+/// #     fn checkin(&self, p: &str) -> Result<String, MythicError> { Ok(String::new()) }
+/// #     fn get_tasking(&self, p: &str) -> Result<String, MythicError> { Ok(String::new()) }
+/// #     fn post_response(&self, p: &str) -> Result<String, MythicError> { Ok(String::new()) }
 /// # }
 /// let c2 = HttpC2;
 /// let payload_uuid = Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwrap();
@@ -121,7 +119,7 @@ impl MythicAgent {
 
         let needs_crypto = c2.get_aes_psk().is_some();
         let iv = if needs_crypto {
-            c2.random_iv().map_err(MythicError::transport)?
+            c2.random_iv()?
         } else {
             [0u8; 16]
         };
@@ -155,13 +153,13 @@ impl MythicAgent {
 
         if let Some(key_b64) = c2.get_aes_psk() {
             let crypto = Aes256HmacCrypto::from_base64_key(&key_b64)?;
-            let iv = c2.random_iv().map_err(MythicError::transport)?;
+            let iv = c2.random_iv()?;
             let packed = encode_message(&req, self.callback_uuid, &crypto, &iv)?;
-            let response = c2.get_tasking(&packed).map_err(MythicError::transport)?;
+            let response = c2.get_tasking(&packed)?;
             decode_message(&response, Some(self.callback_uuid), &crypto).map(|(_, r)| r)
         } else {
             let packed = encode_message_plain(&req, self.callback_uuid)?;
-            let response = c2.get_tasking(&packed).map_err(MythicError::transport)?;
+            let response = c2.get_tasking(&packed)?;
             decode_message_plain(&response, Some(self.callback_uuid)).map(|(_, r)| r)
         }
     }
@@ -196,13 +194,13 @@ impl MythicAgent {
 
         if let Some(key_b64) = c2.get_aes_psk() {
             let crypto = Aes256HmacCrypto::from_base64_key(&key_b64)?;
-            let iv = c2.random_iv().map_err(MythicError::transport)?;
+            let iv = c2.random_iv()?;
             let packed = encode_message(&req, self.callback_uuid, &crypto, &iv)?;
-            let response = c2.post_response(&packed).map_err(MythicError::transport)?;
+            let response = c2.post_response(&packed)?;
             decode_message(&response, Some(self.callback_uuid), &crypto).map(|(_, r)| r)
         } else {
             let packed = encode_message_plain(&req, self.callback_uuid)?;
-            let response = c2.post_response(&packed).map_err(MythicError::transport)?;
+            let response = c2.post_response(&packed)?;
             decode_message_plain(&response, Some(self.callback_uuid)).map(|(_, r)| r)
         }
     }
