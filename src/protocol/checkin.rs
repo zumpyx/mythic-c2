@@ -1,4 +1,4 @@
-//! Checkin message types for all three authentication modes.
+//! Checkin message types: plaintext, static-key, and RSA/translation staging.
 //!
 //! # Modes
 //!
@@ -6,6 +6,8 @@
 //! |---|---|---|
 //! | Plaintext | [`ReqCheckin`] | none (`c2.aes_psk() = None`) |
 //! | Static key | [`ReqCheckin`] | AES-256-CBC-HMAC (`c2.aes_psk() = Some(key)`) |
+//! | RSA staging | [`ReqStagingRSA`] | types defined, RSA crypto not yet implemented |
+//! | Translation | [`ReqStagingTranslation`] | types defined, EKE logic left to implementor |
 
 use alloc::{
     string::{String, ToString},

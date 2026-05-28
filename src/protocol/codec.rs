@@ -7,11 +7,8 @@
 //!
 //! The AES layer is optional — omitted when no crypto is provided.
 //!
-//!
 //! Cipher details: IV (16 bytes) + ciphertext + HMAC-SHA256 (32 bytes), PKCS7 padding.
-//! IV is generated per-message by the caller and passed to [`MythicCrypto::encrypt`].
-//! Cipher details: IV (16 bytes) + ciphertext + HMAC-SHA256 (32 bytes), PKCS7 padding.
-//! IV is generated per-message by the caller and passed to [`MythicCrypto::encrypt`].
+//! The caller provides a fresh random IV per message via [`C2Transport::random_iv`].
 
 use aes::Aes256;
 use alloc::{

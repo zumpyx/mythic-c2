@@ -6,8 +6,11 @@
 //! # Quick start
 //!
 //! ```ignore
+//! use mythic::C2Transport;
+//!
 //! impl C2Transport for HttpC2 {
 //!     type Error = &'static str;
+//!     fn random_iv(&self) -> Result<[u8; 16], Self::Error> { /* TRNG */ Ok([0u8; 16]) }
 //!     fn checkin(&self, packed: &str) -> Result<String, Self::Error> { ... }
 //!     fn get_tasking(&self, packed: &str) -> Result<String, Self::Error> { ... }
 //!     fn post_response(&self, packed: &str) -> Result<String, Self::Error> { ... }
