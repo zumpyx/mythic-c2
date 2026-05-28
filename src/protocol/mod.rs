@@ -23,7 +23,7 @@ pub use checkin::{
 };
 pub use codec::{
     AES256_HMAC_LEN, AES256_IV_LEN, AES256_KEY_LEN, Aes256HmacCrypto, MYTHIC_UUID_LEN,
-    MythicCrypto, MythicMessage, decode_message, decode_message_plain,
+    MythicCrypto, decode_message, decode_message_plain,
     encode_message, encode_message_plain,
 };
 pub use peer::{

@@ -203,43 +203,6 @@ pub fn decode_message_plain<T: DeserializeOwned>(
     Ok((uuid, msg))
 }
 
-// ── MythicMessage trait ─────────────────────────────────
-
-/// Convenience trait adding `to_wire` / `from_wire` methods to every message type.
-///
-/// Blanket-implemented for all `Serialize + DeserializeOwned` types.
-pub trait MythicMessage: Serialize + DeserializeOwned + Sized {
-    fn to_wire(
-        &self,
-        uuid: Uuid,
-        crypto: &impl MythicCrypto,
-        iv: &[u8; AES256_IV_LEN],
-    ) -> Result<String, MythicError> {
-        encode_message(self, uuid, crypto, iv)
-    }
-
-    fn to_wire_plain(&self, uuid: Uuid) -> Result<String, MythicError> {
-        encode_message_plain(self, uuid)
-    }
-
-    fn from_wire(
-        packed: &str,
-        expected_uuid: Option<Uuid>,
-        crypto: &impl MythicCrypto,
-    ) -> Result<(Uuid, Self), MythicError> {
-        decode_message(packed, expected_uuid, crypto)
-    }
-
-    fn from_wire_plain(
-        packed: &str,
-        expected_uuid: Option<Uuid>,
-    ) -> Result<(Uuid, Self), MythicError> {
-        decode_message_plain(packed, expected_uuid)
-    }
-}
-
-impl<T: Serialize + DeserializeOwned + Sized> MythicMessage for T {}
-
 // ── Tests ───────────────────────────────────────────────
 
 #[cfg(test)]

