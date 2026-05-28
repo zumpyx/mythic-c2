@@ -100,13 +100,13 @@ impl MythicAgent {
     ) -> MythicResult<()> {
         let payload_uuid = req.uuid;
 
-        if self.debug {
-            if let Ok(json) = serde_json::to_string(&req) {
-                self.trace_json_sent = Some(json);
-            }
+        if self.debug
+            && let Ok(json) = serde_json::to_string(&req)
+        {
+            self.trace_json_sent = Some(json);
         }
 
-        let iv = c2.random_iv().map_err(|e| MythicError::transport(e))?;
+        let iv = c2.random_iv().map_err(MythicError::transport)?;
         if self.debug {
             self.trace_iv_hex = Some(hex_fmt(&iv));
         }
@@ -132,14 +132,14 @@ impl MythicAgent {
     ) -> MythicResult<RespGetTasking> {
         let req = ReqGetTasking::new(tasking_size);
 
-        if self.debug {
-            if let Ok(json) = serde_json::to_string(&req) {
-                self.trace_json_sent = Some(json);
-            }
+        if self.debug
+            && let Ok(json) = serde_json::to_string(&req)
+        {
+            self.trace_json_sent = Some(json);
         }
 
         if let Some(ref crypto) = self.crypto {
-            let iv = c2.random_iv().map_err(|e| MythicError::transport(e))?;
+            let iv = c2.random_iv().map_err(MythicError::transport)?;
 
             if self.debug {
                 self.trace_iv_hex = Some(hex_fmt(&iv));
@@ -150,15 +150,15 @@ impl MythicAgent {
 
             let response = c2
                 .get_tasking(&packed)
-                .map_err(|e| MythicError::transport(e))?;
+                .map_err(MythicError::transport)?;
             self.trace_packet_received = Some(response.clone());
 
             let (_, resp) = decode_message(&response, Some(self.callback_uuid), crypto)?;
 
-            if self.debug {
-                if let Ok(json) = serde_json::to_string(&resp) {
-                    self.trace_json_received = Some(json);
-                }
+            if self.debug
+                && let Ok(json) = serde_json::to_string(&resp)
+            {
+                self.trace_json_received = Some(json);
             }
 
             Ok(resp)
@@ -168,7 +168,7 @@ impl MythicAgent {
 
             let response = c2
                 .get_tasking(&packed)
-                .map_err(|e| MythicError::transport(e))?;
+                .map_err(MythicError::transport)?;
             self.trace_packet_received = Some(response.clone());
 
             let (_, resp) = decode_message_plain(&response, Some(self.callback_uuid))?;
@@ -190,14 +190,14 @@ impl MythicAgent {
     ) -> MythicResult<RespPostResponse> {
         let req = ReqPostResponse::new(responses);
 
-        if self.debug {
-            if let Ok(json) = serde_json::to_string(&req) {
-                self.trace_json_sent = Some(json);
-            }
+        if self.debug
+            && let Ok(json) = serde_json::to_string(&req)
+        {
+            self.trace_json_sent = Some(json);
         }
 
         if let Some(ref crypto) = self.crypto {
-            let iv = c2.random_iv().map_err(|e| MythicError::transport(e))?;
+            let iv = c2.random_iv().map_err(MythicError::transport)?;
 
             if self.debug {
                 self.trace_iv_hex = Some(hex_fmt(&iv));
@@ -208,15 +208,15 @@ impl MythicAgent {
 
             let response = c2
                 .post_response(&packed)
-                .map_err(|e| MythicError::transport(e))?;
+                .map_err(MythicError::transport)?;
             self.trace_packet_received = Some(response.clone());
 
             let (_, resp) = decode_message(&response, Some(self.callback_uuid), crypto)?;
 
-            if self.debug {
-                if let Ok(json) = serde_json::to_string(&resp) {
-                    self.trace_json_received = Some(json);
-                }
+            if self.debug
+                && let Ok(json) = serde_json::to_string(&resp)
+            {
+                self.trace_json_received = Some(json);
             }
 
             Ok(resp)
@@ -226,7 +226,7 @@ impl MythicAgent {
 
             let response = c2
                 .post_response(&packed)
-                .map_err(|e| MythicError::transport(e))?;
+                .map_err(MythicError::transport)?;
             self.trace_packet_received = Some(response.clone());
 
             let (_, resp) = decode_message_plain(&response, Some(self.callback_uuid))?;

