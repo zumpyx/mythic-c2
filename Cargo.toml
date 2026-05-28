@@ -11,7 +11,6 @@ readme = "README.md"
 keywords = ["mythic", "c2", "red-team", "agent", "protocol"]
 categories = ["network-programming", "cryptography", "development-tools"]
 
-
 [lib]
 name = "mythic"
 path = "src/lib.rs"

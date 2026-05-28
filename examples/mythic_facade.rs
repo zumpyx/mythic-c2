@@ -3,6 +3,11 @@
 //! The library crate compiles as `#![no_std]` (`cargo build`).  This example
 //! binary links std only for `fn main()` — the API surface shown here uses
 //! only `alloc` / `core` types and works identically in a true no_std implant.
+//!
+//! **Note:** `HttpC2` is a **stub** that returns empty strings.  Running this
+//! example will panic at `.unwrap()` because the decode step receives an empty
+//! response.  A real transport must return valid base64-encoded Mythic wire
+//! packets.  See the unit tests for working encode/decode roundtrips.
 
 use mythic::{Aes256HmacCrypto, C2Transport, MythicAgent, ReqCheckin, TaskResponse};
 use uuid::Uuid;

@@ -88,10 +88,9 @@ required:
 use mythic::C2Transport;
 
 impl C2Transport for HttpTransport {
-    type Error = Box<dyn std::error::Error>;
+    type Error = &'static str;
 
     fn aes_psk(&self) -> Option<String>               { Some("q83v...".into()) }
-    fn encrypted_exchange_check(&self) -> bool        { false }
     fn random_iv(&self) -> Result<[u8; 16], Self::Error> { /* TRNG */ Ok([0u8; 16]) }
 
     fn checkin(&self, pkt: &str)       -> Result<String, Self::Error> { ... }
@@ -100,7 +99,8 @@ impl C2Transport for HttpTransport {
 }
 ```
 
-`encrypted_exchange_check()` defaults to `false`.
+`aes_psk()` and `encrypted_exchange_check()` default to `None` / `false` — override
+only when needed.
 
 ## Three Communication Scenarios
 
