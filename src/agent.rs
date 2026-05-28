@@ -89,7 +89,7 @@ impl MythicAgent {
         domain: Option<String>,
         integrity_level: Option<u32>,
         external_ip: Option<String>,
-        pub_encryption_key: Option<String>,
+        encryption_key: Option<String>,
         decryption_key: Option<String>,
         process_name: Option<String>,
     ) -> MythicResult<Self> {
@@ -104,7 +104,7 @@ impl MythicAgent {
             domain,
             integrity_level,
             external_ip,
-            pub_encryption_key,
+            encryption_key,
             decryption_key,
             process_name,
         );
