@@ -17,7 +17,7 @@ struct HttpC2 { key_b64: Option<String> }
 impl C2Transport for HttpC2 {
     type Error = String;
 
-    fn aes_psk(&self) -> Option<String>        { self.key_b64.clone() }
+    fn encryption_key(&self) -> Option<String>        { self.key_b64.clone() }
     fn random_iv(&self) -> Result<[u8; 16], Self::Error> {
         // Use a real TRNG in production — zero IV is for plaintext only.
         Ok([0u8; 16])
@@ -92,7 +92,7 @@ use mythic::C2Transport;
 impl C2Transport for HttpTransport {
     type Error = &'static str;
 
-    fn aes_psk(&self) -> Option<String>               { Some("q83v...".into()) }
+    fn encryption_key(&self) -> Option<String>               { Some("q83v...".into()) }
     fn random_iv(&self) -> Result<[u8; 16], Self::Error> { /* TRNG */ Ok([0u8; 16]) }
 
     fn checkin(&self, pkt: &str)       -> Result<String, Self::Error> { ... }
@@ -101,16 +101,16 @@ impl C2Transport for HttpTransport {
 }
 ```
 
-`aes_psk()` and `encrypted_exchange_check()` default to `None` / `false` — override
+`encryption_key()` and `encrypted_exchange_check()` default to `None` / `false` — override
 only when needed.
 
 ## Three Communication Scenarios
 
 | Scenario | C2 config | Flow |
 |---|---|---|
-| Plaintext | `aes_psk = None` | `checkin` → `get_tasking` → `post_response` |
-| Static key | `aes_psk = Some(key)` | AES-256-CBC-HMAC encrypted versions of the above |
-| RSA EKE | `aes_psk = Some(key)`, `exchange = true` | RSA staging → checkin (types defined, RSA crypto not yet implemented) |
+| Plaintext | `encryption_key = None` | `checkin` → `get_tasking` → `post_response` |
+| Static key | `encryption_key = Some(key)` | AES-256-CBC-HMAC encrypted versions of the above |
+| RSA EKE | `encryption_key = Some(key)`, `exchange = true` | RSA staging → checkin (types defined, RSA crypto not yet implemented) |
 
 See [`examples/mythic_facade.rs`](examples/mythic_facade.rs) for the full agent lifecycle.
 

