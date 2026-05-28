@@ -1,4 +1,5 @@
-//! Unified error type for all mythic-c2 operations.
+//! Unified error type for the full mythic-c2 lifecycle — codec, crypto,
+//! transport, protocol, task execution, and runtime.
 //!
 //! Each variant carries a stable numeric code used by [`Display`](MythicError::fmt).
 //! In `no_std` release builds every error is a single-digit number — zero strings.
@@ -6,38 +7,47 @@
 use alloc::string::String;
 use core::fmt;
 
-/// Unified error covering codec, crypto, transport, and protocol failures.
+/// Unified error covering the full C2 agent lifecycle.
 ///
 /// # Error codes
 ///
-/// | Code | Variant | Meaning |
-/// |------|---------|---------|
-/// | 1 | `Serialize` | JSON serialization failed |
-/// | 2 | `Deserialize` | JSON deserialization failed |
-/// | 3 | `Base64` | Base64 decode failed |
-/// | 4 | `Utf8` | UUID portion is not valid UTF-8 |
-/// | 5 | `InvalidPacket` | Packet too short or malformed |
-/// | 6 | `InvalidUuid` | UUID string is not valid |
-/// | 7 | `UuidMismatch` | UUID in response does not match expected |
-/// | 8 | `Crypto` | Cryptographic operation failed |
-/// | 9 | `Timeout` | Transport timed out |
-/// | 10 | `ConnectionFailed` | TCP/TLS connection failed |
-/// | 11 | `DnsFailed` | DNS resolution failed |
-/// | 12 | `TlsFailed` | TLS handshake or certificate error |
-/// | 13 | `HttpStatus` | HTTP error — carries the status code |
-/// | 14 | `ServerError` | Server returned 5xx — carries the status code |
-/// | 15 | `AuthFailed` | Authentication or key mismatch |
-/// | 16 | `ServerRejected` | Server returned a rejection response |
-/// | 17 | `NotCheckedIn` | get_tasking / post_response called before checkin |
-/// | 18 | `PayloadTooLarge` | Message exceeds server size limit |
-/// | 19 | `KeyExchangeFailed` | RSA / translation staging negotiation failed |
-/// | 20 | `RateLimited` | Client or server rate limiting |
-/// | 21 | `Transport` | Transport fallback — carries a message string |
-/// | 22 | `Protocol` | Protocol fallback — carries a message string |
+/// | Code | Variant | Category |
+/// |------|---------|----------|
+/// | 1 | `Serialize` | Codec |
+/// | 2 | `Deserialize` | Codec |
+/// | 3 | `Base64` | Codec |
+/// | 4 | `Utf8` | Codec |
+/// | 5 | `InvalidPacket` | Codec |
+/// | 6 | `InvalidUuid` | Codec |
+/// | 7 | `UuidMismatch` | Codec |
+/// | 8 | `Crypto` | Crypto |
+/// | 9 | `Timeout` | Transport |
+/// | 10 | `ConnectionFailed` | Transport |
+/// | 11 | `DnsFailed` | Transport |
+/// | 12 | `TlsFailed` | Transport |
+/// | 13 | `HttpStatus(u16)` | Transport |
+/// | 14 | `ServerError(u16)` | Transport |
+/// | 15 | `AuthFailed` | Protocol |
+/// | 16 | `ServerRejected` | Protocol |
+/// | 17 | `NotCheckedIn` | Protocol |
+/// | 18 | `PayloadTooLarge` | Protocol |
+/// | 19 | `KeyExchangeFailed` | Protocol |
+/// | 20 | `RateLimited` | Protocol |
+/// | 21 | `CommandNotFound` | Task |
+/// | 22 | `InvalidTaskData` | Task |
+/// | 23 | `TaskTimeout` | Task |
+/// | 24 | `ResourceExhausted` | Runtime |
+/// | 25 | `PermissionDenied` | Runtime |
+/// | 26 | `ProcessFailed` | Runtime |
+/// | 27 | `IoFailed` | Runtime |
+/// | 28 | `Transport` | Fallback |
+/// | 29 | `Protocol` | Fallback |
+/// | 30 | `Task` | Fallback |
+/// | 31 | `Runtime` | Fallback |
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[repr(u8)]
 pub enum MythicError {
-    // ── Codec ──
+    // ── Codec ──────────────────────────────────────────
     Serialize = 1,
     Deserialize = 2,
     Base64 = 3,
@@ -46,10 +56,10 @@ pub enum MythicError {
     InvalidUuid = 6,
     UuidMismatch = 7,
 
-    // ── Crypto ──
+    // ── Crypto ─────────────────────────────────────────
     Crypto = 8,
 
-    // ── Transport ──
+    // ── Transport ──────────────────────────────────────
     Timeout = 9,
     ConnectionFailed = 10,
     DnsFailed = 11,
@@ -57,7 +67,7 @@ pub enum MythicError {
     HttpStatus(u16) = 13,
     ServerError(u16) = 14,
 
-    // ── Protocol ──
+    // ── Protocol ───────────────────────────────────────
     AuthFailed = 15,
     ServerRejected = 16,
     NotCheckedIn = 17,
@@ -65,9 +75,22 @@ pub enum MythicError {
     KeyExchangeFailed = 19,
     RateLimited = 20,
 
-    // ── Fallback ──
-    Transport(String) = 21,
-    Protocol(String) = 22,
+    // ── Task ───────────────────────────────────────────
+    CommandNotFound = 21,
+    InvalidTaskData = 22,
+    TaskTimeout = 23,
+
+    // ── Runtime ────────────────────────────────────────
+    ResourceExhausted = 24,
+    PermissionDenied = 25,
+    ProcessFailed = 26,
+    IoFailed = 27,
+
+    // ── Fallback ───────────────────────────────────────
+    Transport(String) = 28,
+    Protocol(String) = 29,
+    Task(String) = 30,
+    Runtime(String) = 31,
 }
 
 impl MythicError {
@@ -94,8 +117,17 @@ impl MythicError {
             Self::PayloadTooLarge => 18,
             Self::KeyExchangeFailed => 19,
             Self::RateLimited => 20,
-            Self::Transport(_) => 21,
-            Self::Protocol(_) => 22,
+            Self::CommandNotFound => 21,
+            Self::InvalidTaskData => 22,
+            Self::TaskTimeout => 23,
+            Self::ResourceExhausted => 24,
+            Self::PermissionDenied => 25,
+            Self::ProcessFailed => 26,
+            Self::IoFailed => 27,
+            Self::Transport(_) => 28,
+            Self::Protocol(_) => 29,
+            Self::Task(_) => 30,
+            Self::Runtime(_) => 31,
         }
     }
 
@@ -107,6 +139,16 @@ impl MythicError {
     /// Build a `Protocol` variant from any `Display` error.
     pub fn protocol<E: fmt::Display>(e: E) -> Self {
         Self::Protocol(alloc::format!("{e}"))
+    }
+
+    /// Build a `Task` variant from any `Display` error.
+    pub fn task<E: fmt::Display>(e: E) -> Self {
+        Self::Task(alloc::format!("{e}"))
+    }
+
+    /// Build a `Runtime` variant from any `Display` error.
+    pub fn runtime<E: fmt::Display>(e: E) -> Self {
+        Self::Runtime(alloc::format!("{e}"))
     }
 }
 
