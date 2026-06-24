@@ -23,42 +23,74 @@ enum.
 
 ## Quick Start
 
+A complete agent using the built-in `httpx` transport and static AES-256
+encryption. The `httpx` and `rustls` features are enabled by default.
+
+```toml
+[dependencies]
+mythic = "0.2"
+uuid = "1"
+```
+
 ```rust
-use mythic::{Aes256HmacCrypto, C2Transport, MythicAgent, MythicError, TaskResponse};
+use std::thread::sleep;
+use std::time::Duration;
+use mythic::{MythicAgent, TaskResponse};
+use mythic::transport::httpx::{HttpxConfig, HttpxTransport};
 use uuid::Uuid;
 
-// Implement C2Transport for your channel, or use a built-in transport.
-struct HttpC2 { key_b64: Option<String> }
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let payload_uuid = Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")?;
 
-impl C2Transport for HttpC2 {
-    fn get_aes_psk(&self) -> Option<String>        { self.key_b64.clone() }
-    fn checkin(&self, p: &str)       -> Result<String, MythicError> { /* POST ... */ Ok(String::new()) }
-    fn get_tasking(&self, p: &str)   -> Result<String, MythicError> { /* GET  ... */ Ok(String::new()) }
-    fn post_response(&self, p: &str) -> Result<String, MythicError> { /* POST ... */ Ok(String::new()) }
-}
+    // 32-byte AES-256 key, base64-encoded. Must match the key configured in
+    // the Mythic payload builder for this agent.
+    let aes_key_b64 = "YOUR_BASE64_AES_256_KEY_HERE";
 
-let payload_uuid = Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwrap();
-let mut c2 = HttpC2 { key_b64: None };
+    // Build the HTTPX transport. Query parameter `id` will carry URL-safe
+    // base64 tasking requests, matching the Mythic `httpx` profile.
+    let cfg = HttpxConfig {
+        callback_host: "https://c2.example.com".into(),
+        callback_port: 443,
+        get_uri: "index".into(),
+        post_uri: "data".into(),
+        query_path_name: Some("id".into()),
+        aes_psk: Some(aes_key_b64.into()),
+        ..Default::default()
+    };
+    let mut c2 = HttpxTransport::new(cfg)?;
 
-// 1. Checkin
-let agent = MythicAgent::easy_checkin(
-    payload_uuid,
-    &mut c2,
-    vec!["10.0.0.1".into()],
-    Some("linux".into()), Some("root".into()), Some("web01".into()),
-    Some(1337), Some("x86_64".into()),
-    None, None, None, None, None, None,
-)
-.unwrap();
+    // 1. Checkin
+    let agent = MythicAgent::easy_checkin(
+        payload_uuid,
+        &mut c2,
+        vec!["10.0.0.1".into()],
+        Some("linux".into()),
+        Some("root".into()),
+        Some("web01".into()),
+        Some(1337),
+        Some("x86_64".into()),
+        None, None, None, None, None, None,
+    )?;
+    println!("callback UUID: {}", agent.callback_uuid());
 
-// 2. Poll for tasks
-let tasks = agent.get_tasking(1, &c2).unwrap();
-for t in &tasks.tasks {
-    // 3. Execute and respond
-    agent.post_response(
-        vec![TaskResponse::completed(t.id, "done")],
-        &c2,
-    ).unwrap();
+    // 2. Main tasking loop
+    loop {
+        // -1 asks Mythic for all available tasks
+        let tasks = agent.get_tasking(-1, &c2)?;
+
+        for t in &tasks.tasks {
+            // 3. Execute the task (replace with real work)
+            let output = format!("completed task {}", t.id);
+
+            // 4. Send the response back
+            agent.post_response(
+                vec![TaskResponse::completed(t.id, &output)],
+                &c2,
+            )?;
+        }
+
+        sleep(Duration::from_secs(10));
+    }
 }
 ```
 
@@ -167,7 +199,8 @@ only when needed.
 | Static key | `get_aes_psk = Some(key)` | AES-256-CBC-HMAC encrypted versions of the above |
 | RSA EKE | `get_aes_psk = None`, `encrypted_exchange_check = true` | RSA staging → checkin (requires `rsa-staging` feature) |
 
-See [`examples/mythic_facade.rs`](examples/mythic_facade.rs) for the full agent lifecycle.
+See [`examples/httpx_agent.rs`](examples/httpx_agent.rs) for the HTTPX quick-start example,
+and [`examples/mythic_facade.rs`](examples/mythic_facade.rs) for the full agent lifecycle.
 
 ## Wire Format
 
