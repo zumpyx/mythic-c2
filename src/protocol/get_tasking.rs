@@ -1,12 +1,12 @@
 //! Get-tasking message types — polling for new tasks, plus task/response/hooking
 //! types shared with [`super::post_response`].
 
-use alloc::{
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use std::{
     string::{String, ToString},
     vec::Vec,
 };
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use uuid::Uuid;
 
 use super::{
@@ -17,7 +17,7 @@ use super::{
     },
 };
 
-fn default_tasking_size() -> u32 {
+fn default_tasking_size() -> i32 {
     1
 }
 
@@ -69,7 +69,7 @@ pub type AgentResponseExtras = AgentExtras;
 pub struct ReqGetTasking {
     pub action: String,
     #[serde(default = "default_tasking_size")]
-    pub tasking_size: u32,
+    pub tasking_size: i32,
     #[serde(default = "default_get_delegate_tasks")]
     pub get_delegate_tasks: bool,
     #[serde(flatten)]
@@ -77,7 +77,7 @@ pub struct ReqGetTasking {
 }
 
 impl ReqGetTasking {
-    pub fn new(tasking_size: u32) -> Self {
+    pub fn new(tasking_size: i32) -> Self {
         Self {
             action: ACTION_GET_TASKING.to_string(),
             tasking_size,
@@ -86,7 +86,7 @@ impl ReqGetTasking {
         }
     }
 
-    pub fn with_delegate_tasks(tasking_size: u32, get_delegate_tasks: bool) -> Self {
+    pub fn with_delegate_tasks(tasking_size: i32, get_delegate_tasks: bool) -> Self {
         Self {
             action: ACTION_GET_TASKING.to_string(),
             tasking_size,
@@ -97,7 +97,7 @@ impl ReqGetTasking {
 
     /// Build a `get_tasking` request carrying delegates, SOCKS, RPFWD,
     /// interactive data, edges, alerts, and/or responses.
-    pub fn with_extras(tasking_size: u32, extras: AgentMessageExtras) -> Self {
+    pub fn with_extras(tasking_size: i32, extras: AgentMessageExtras) -> Self {
         Self {
             action: ACTION_GET_TASKING.to_string(),
             tasking_size,
@@ -197,7 +197,7 @@ impl TaskResponse {
         Self {
             task_id,
             completed: Some(true),
-            status: Some("completed".into()),
+            status: Some("success".into()),
             user_output: Some(user_output.into()),
             ..Default::default()
         }
@@ -396,7 +396,7 @@ pub struct RemovedFileInfo {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alloc::{string::ToString, vec};
+    use std::{string::ToString, vec};
 
     use crate::protocol::peer::{
         AlertMessage, EdgeMessage, InteractiveMessage, ReversePortForwardMessage, SocksMessage,
@@ -405,10 +405,12 @@ mod tests {
     #[test]
     fn get_tasking_defaults_are_correct() {
         let req = ReqGetTasking::new(9);
+        let req_all = ReqGetTasking::new(-1);
         let req_without = ReqGetTasking::with_delegate_tasks(3, false);
 
         assert_eq!(req.action, ACTION_GET_TASKING);
         assert_eq!(req.tasking_size, 9);
+        assert_eq!(req_all.tasking_size, -1);
         assert!(req.get_delegate_tasks);
         assert!(!req_without.get_delegate_tasks);
     }

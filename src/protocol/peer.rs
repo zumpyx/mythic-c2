@@ -1,9 +1,9 @@
 //! P2P and auxiliary message types — delegates, SOCKS, reverse port forward,
 //! interactive tasking, alerts, and edges.
 
-use alloc::string::{String, ToString};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::string::{String, ToString};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
@@ -95,7 +95,7 @@ pub struct InteractiveMessage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alloc::string::ToString;
+    use std::string::ToString;
 
     #[test]
     fn peer_messages_roundtrip() {
