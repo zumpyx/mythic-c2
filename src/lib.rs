@@ -1,54 +1,19 @@
-//! # mythic-c2
-//!
-//! Mythic C2 agent protocol library — message encoding/decoding,
-//! AES-256-CBC-HMAC encryption, and transport abstraction.
-//!
-//! ## Quick Example
-//!
-//! ```no_run
-//! use mythic::{C2Transport, MythicAgent, MythicError};
-//! use uuid::Uuid;
-//!
-//! # struct HttpC2;
-//! # impl C2Transport for HttpC2 {
-//! #     fn checkin(&self, p: &str) -> Result<String, MythicError> { Ok(String::new()) }
-//! #     fn get_tasking(&self, p: &str) -> Result<String, MythicError> { Ok(String::new()) }
-//! #     fn post_response(&self, p: &str) -> Result<String, MythicError> { Ok(String::new()) }
-//! # }
-//! let mut c2 = HttpC2;
-//! let payload_uuid = Uuid::parse_str("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee").unwrap();
-//!
-//! let agent = MythicAgent::easy_checkin(
-//!     payload_uuid,
-//!     &mut c2,
-//!     vec!["10.0.0.1".into()],
-//!     Some("linux".into()),
-//!     Some("root".into()),
-//!     Some("web01".into()),
-//!     Some(1337),
-//!     Some("x86_64".into()),
-//!     None, None, None, None, None, None,
-//! )
-//! .unwrap();
-//!
-//! println!("callback UUID: {}", agent.callback_uuid());
-//! ```
+#[doc(hidden)]
+pub use obfstr as libobfstr;
+#[macro_use]
+mod macros;
+mod common;
 
 pub mod agent;
+pub mod c2;
 pub mod error;
 pub mod protocol;
-pub mod transport;
 
-pub use agent::MythicAgent;
+// pub use agent::MythicAgent;
+pub use c2::MythicC2;
+use common::*;
 pub use error::{MythicError, MythicResult};
-pub use protocol::*;
-pub use transport::C2Transport;
+pub use protocol::MythicAgent;
 
-#[cfg(any(
-    feature = "http",
-    feature = "httpx",
-    feature = "dns",
-    feature = "websocket",
-    feature = "github"
-))]
-pub use transport::config::{C2Profile, C2Profiles};
+// #[cfg(any(feature = "http", feature = "httpx"))]
+// pub use c2::config::{C2Profile, C2Profiles};

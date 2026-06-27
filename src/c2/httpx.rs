@@ -4,4 +4,4 @@
 //! `HttpConfig` / `HttpTransport` implementation, defaulting to URL-safe
 //! base64-encoded messages in the `id` query parameter for GET tasking.
 
-pub use crate::transport::http::{HttpConfig as HttpxConfig, HttpTransport as HttpxTransport};
+pub use crate::c2::http::{HttpConfig as HttpxConfig, HttpTransport as HttpxTransport};

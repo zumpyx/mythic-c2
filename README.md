@@ -4,22 +4,19 @@ Mythic C2 agent protocol library for Rust — message encoding/decoding,
 AES-256-CBC-HMAC encryption, RSA encrypted key exchange, and a transport
 abstraction layer.
 
+The built-in HTTP/HTTPX transport now uses [`minreq`](https://crates.io/crates/minreq)
+with `rustls` only.
+
 ## Cargo features
 
 | Feature | Description |
 |---|---|
 | `httpx` (default) | HTTP/HTTPS with URL-safe base64 query parameters |
 | `http` | Plain HTTP/HTTPS transport |
-| `dns` | DNS-over-HTTPS transport |
-| `websocket` | WebSocket transport |
-| `github` | GitHub Issues/Comments transport |
 | `rustls` (default) | TLS via `rustls` |
-| `native-tls` | TLS via `native-tls` |
 | `rsa-staging` | RSA encrypted key exchange |
 
-`httpx` and `rustls` are enabled by default. Multiple transports can be
-compiled into the same binary and selected at runtime via the `C2Profiles`
-enum.
+`httpx` and `rustls` are enabled by default.
 
 ## Quick Start
 
@@ -169,9 +166,8 @@ let json = serde_json::to_vec(&req)?;
 
 ## C2Transport Trait
 
-Implement for any transport (HTTP, DNS, WebSocket, etc.). Three methods
-required; `get_aes_psk`, `random_iv`, and `encrypted_exchange_check`
-have sensible defaults:
+Implement for any transport. Three methods required; `get_aes_psk`,
+`random_iv`, and `encrypted_exchange_check` have sensible defaults:
 
 ```rust
 use mythic::{C2Transport, MythicError};
@@ -221,10 +217,7 @@ Base64( UUID(36) + [ IV(16) + ciphertext + HMAC-SHA256(32) ] )
 | RSA staging key exchange | Complete (behind `rsa-staging`) |
 | Translation-container staging | Types defined |
 | Checkin / get_tasking / post_response | Complete |
-| HTTP / HTTPX transport | Complete |
-| DNS transport | Complete (DoH) |
-| WebSocket transport | Complete |
-| GitHub transport | Complete |
+| HTTP / HTTPX transport | Complete (minreq + rustls) |
 | File download (agent→mythic) | Types defined |
 | File upload (mythic→agent) | Types defined |
 | P2P / delegate messages | Types defined |

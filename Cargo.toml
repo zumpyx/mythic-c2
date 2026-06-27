@@ -4,7 +4,7 @@ version = "0.2.2"
 edition = "2024"
 license = "GPL-3.0-only"
 authors = ["Zumpyx <zumpyx@qq.com>"]
-description = "Mythic C2 agent library — message encoding, AES-256-CBC-HMAC crypto, and transport abstraction for the full agent lifecycle"
+description = "Mythic C2 agent library — message encoding, AES-256-CBC-HMAC crypto, and HTTP/HTTPX transport (minreq + rustls)"
 repository = "https://github.com/zumpyx/mythic-c2"
 documentation = "https://docs.rs/mythic-c2"
 readme = "README.md"
@@ -15,48 +15,35 @@ categories = ["network-programming", "cryptography", "development-tools"]
 name = "mythic"
 path = "src/lib.rs"
 
-[features]
-default = ["httpx", "rustls"]
-http = ["dep:ureq", "dep:url", "dep:getrandom"]
-httpx = ["http"]
-dns = ["dep:ureq", "dep:url", "dep:getrandom"]
-websocket = ["dep:tungstenite", "dep:url", "dep:getrandom"]
-github = ["http"]
-getrandom = ["dep:getrandom"]
-rustls = ["ureq?/rustls", "tungstenite?/rustls-tls-native-roots", "tungstenite?/handshake"]
-native-tls = ["ureq?/native-tls", "tungstenite?/native-tls", "tungstenite?/handshake"]
-rsa-staging = ["dep:rsa", "dep:rand", "dep:getrandom", "dep:sha1"]
+# [features]
+# http = ["http"]
+# httpx = ["http"]
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1" }
 uuid = { version = "1", features = ["serde", "v4"] }
 base64 = { version = "0.22" }
-aes = { version = "0.8" }
-cbc = { version = "0.1", features = ["alloc"] }
-cipher = { version = "0.4", features = ["alloc", "block-padding"] }
-hmac = { version = "0.12" }
-sha1 = { version = "0.10", optional = true }
-sha2 = { version = "0.10" }
+aes = "0.8.3"
+cbc = "0.1"
+cipher = { version = "0.4", features = ["alloc"] }
+hmac = "0.12.1"
+sha1 = "0.10.6"
+sha2 = "0.10.6"
+rand = "0.8.5"
+obfstr = "0.4.4"
+rsa = "0.9.10"
+minreq = { version = "3.0.0", features = ["proxy"] }
 
-# Protocol extensions
-rsa = { version = "0.9", optional = true, default-features = false, features = ["pem", "sha1"] }
-rand = { version = "0.8", optional = true }
-getrandom = { version = "0.2", optional = true, features = ["std"] }
-
-# Transports
-ureq = { version = "3", optional = true, default-features = false }
-tungstenite = { version = "0.24", optional = true, default-features = false, features = ["handshake"] }
-url = { version = "2", optional = true }
-
-[dev-dependencies]
-httptest = "0.15"
+# [dev-dependencies]
+# httptest = "0.15"
 
 [profile.dev]
+opt-level = 3
 panic = "abort"
 
 [profile.release]
-opt-level = "z"
+opt-level = 3
 lto = "fat"
 codegen-units = 1
 panic = "abort"

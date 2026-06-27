@@ -43,7 +43,7 @@ impl C2Transport for HttpC2 {
 #[cfg(any(feature = "http", feature = "httpx"))]
 fn demo_config_deserialization() {
     use mythic::C2Profiles;
-    use mythic::transport::http::HttpConfig;
+    use mythic::c2::http::HttpConfig;
 
     let builder_json = r#"{
         "c2_profiles": [
