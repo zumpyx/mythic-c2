@@ -1,3 +1,13 @@
+#[macro_export]
+macro_rules! debug {
+    ($($arg:tt)*) => {
+        #[cfg(debug_assertions)]
+        {
+            dbg!($($arg)*);
+        }
+    };
+}
+
 /// 混淆字符串
 #[macro_export]
 macro_rules! obfstr {

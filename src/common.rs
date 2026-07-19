@@ -1,3 +1,5 @@
+pub mod hash;
+
 use crate::{MythicError, MythicResult};
 
 use base64::Engine as _;
@@ -9,4 +11,9 @@ pub fn base64_encode(data: impl AsRef<[u8]>) -> String {
 
 pub fn base64_decode(data: impl AsRef<[u8]>) -> MythicResult<Vec<u8>> {
     STANDARD.decode(data).map_err(|_| MythicError::Base64)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
 }

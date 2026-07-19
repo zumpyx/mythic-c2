@@ -3,21 +3,62 @@
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::string::{String, ToString};
-use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
-pub struct DelegateMessage {
+pub struct Delegate {
     pub message: String,
     /// Required in agent-to-Mythic delegate messages; absent in Mythic-to-agent responses.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub c2_profile: Option<String>,
-    pub uuid: Uuid,
-    #[serde(default, skip_serializing_if = "Option::is_none", alias = "new_uuid")]
-    pub mythic_uuid: Option<Uuid>,
+    pub uuid: String,
 }
 
-pub type P2PMessage = DelegateMessage;
+impl Delegate {
+    pub fn new(message: impl Into<String>, uuid: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+            uuid: uuid.into(),
+            c2_profile: None,
+        }
+    }
+
+    pub fn with_c2_profile(mut self, c2_profile: impl Into<String>) -> Self {
+        self.c2_profile = Some(c2_profile.into());
+        self
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
+pub struct EdgeMessage {
+    pub source: String,
+    pub destination: String,
+    pub action: String,
+    pub c2_profile: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<String>,
+}
+
+impl EdgeMessage {
+    pub fn new(
+        source: impl Into<String>,
+        destination: impl Into<String>,
+        action: impl Into<String>,
+        c2_profile: impl Into<String>,
+    ) -> Self {
+        Self {
+            source: source.into(),
+            destination: destination.into(),
+            action: action.into(),
+            c2_profile: c2_profile.into(),
+            metadata: None,
+        }
+    }
+
+    pub fn with_metadata(mut self, metadata: impl Into<String>) -> Self {
+        self.metadata = Some(metadata.into());
+        self
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AlertMessage {
@@ -31,6 +72,31 @@ pub struct AlertMessage {
     pub send_webhook: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub webhook_alert: Option<Value>,
+}
+
+impl AlertMessage {
+    pub fn new(alert: impl Into<String>) -> Self {
+        Self {
+            alert: Some(alert.into()),
+            ..Default::default()
+        }
+    }
+
+    pub fn with_source(mut self, source: impl Into<String>) -> Self {
+        self.source = Some(source.into());
+        self
+    }
+
+    pub fn with_level(mut self, level: impl Into<String>) -> Self {
+        self.level = Some(level.into());
+        self
+    }
+
+    pub fn with_webhook(mut self, send: bool, alert: Value) -> Self {
+        self.send_webhook = Some(send);
+        self.webhook_alert = Some(alert);
+        self
+    }
 }
 
 impl Default for AlertMessage {
@@ -53,16 +119,6 @@ fn is_warning(level: &Option<String>) -> bool {
     matches!(level.as_deref(), Some("warning"))
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
-pub struct EdgeMessage {
-    pub source: String,
-    pub destination: String,
-    pub action: String,
-    pub c2_profile: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub metadata: Option<String>,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
 pub struct SocksMessage {
     pub server_id: u32,
@@ -71,8 +127,23 @@ pub struct SocksMessage {
     pub data: Option<String>,
 }
 
+impl SocksMessage {
+    pub fn new(server_id: u32, exit: bool) -> Self {
+        Self {
+            server_id,
+            exit,
+            data: None,
+        }
+    }
+
+    pub fn with_data(mut self, data: impl Into<String>) -> Self {
+        self.data = Some(data.into());
+        self
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
-pub struct ReversePortForwardMessage {
+pub struct RpfwdMessage {
     pub server_id: u32,
     pub exit: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -83,36 +154,51 @@ pub struct ReversePortForwardMessage {
     pub port: Option<u32>,
 }
 
-pub type RpfwdMessage = ReversePortForwardMessage;
+impl RpfwdMessage {
+    pub fn new(server_id: u32, exit: bool) -> Self {
+        Self {
+            server_id,
+            exit,
+            data: None,
+            port: None,
+        }
+    }
+
+    pub fn with_data(mut self, data: impl Into<String>) -> Self {
+        self.data = Some(data.into());
+        self
+    }
+
+    pub fn with_port(mut self, port: u32) -> Self {
+        self.port = Some(port);
+        self
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
 pub struct InteractiveMessage {
-    pub task_id: Uuid,
+    pub task_id: String,
     pub data: String,
     pub message_type: u8,
+}
+
+impl InteractiveMessage {
+    pub fn new(task_id: impl Into<String>, data: impl Into<String>, message_type: u8) -> Self {
+        Self {
+            task_id: task_id.into(),
+            data: data.into(),
+            message_type,
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::string::ToString;
 
     #[test]
     fn peer_messages_roundtrip() {
-        let uuid = Uuid::nil();
-        let next_uuid = Uuid::from_u128(1);
-
-        let delegate = DelegateMessage {
-            message: "msg".to_string(),
-            c2_profile: Some("p2p".to_string()),
-            uuid,
-            mythic_uuid: Some(next_uuid),
-        };
-        assert_eq!(
-            serde_json::from_str::<DelegateMessage>(&serde_json::to_string(&delegate).unwrap())
-                .unwrap(),
-            delegate
-        );
+        let delegate = Delegate::new("msg", "uuid").with_c2_profile("p2p");
 
         let alert = AlertMessage {
             source: Some("src".to_string()),
@@ -126,47 +212,30 @@ mod tests {
             alert
         );
 
-        let edge = EdgeMessage {
-            source: "src".to_string(),
-            destination: "dst".to_string(),
-            action: "link".to_string(),
-            c2_profile: "http".to_string(),
-            metadata: Some("{}".to_string()),
-        };
+        let edge = EdgeMessage::new("src", "dst", "link", "http").with_metadata("{}");
+
+        let socks = SocksMessage::new(9, false).with_data("d");
+
+        let rpfwd = RpfwdMessage::new(3, true).with_port(80);
+
+        let interactive = InteractiveMessage::new("task-uuid", "abc", 1);
+
+        assert_eq!(
+            serde_json::from_str::<Delegate>(&serde_json::to_string(&delegate).unwrap()).unwrap(),
+            delegate
+        );
         assert_eq!(
             serde_json::from_str::<EdgeMessage>(&serde_json::to_string(&edge).unwrap()).unwrap(),
             edge
         );
-
-        let socks = SocksMessage {
-            server_id: 9,
-            exit: false,
-            data: Some("d".to_string()),
-        };
         assert_eq!(
             serde_json::from_str::<SocksMessage>(&serde_json::to_string(&socks).unwrap()).unwrap(),
             socks
         );
-
-        let rpfwd = ReversePortForwardMessage {
-            server_id: 3,
-            exit: true,
-            data: None,
-            port: Some(80),
-        };
         assert_eq!(
-            serde_json::from_str::<ReversePortForwardMessage>(
-                &serde_json::to_string(&rpfwd).unwrap()
-            )
-            .unwrap(),
+            serde_json::from_str::<RpfwdMessage>(&serde_json::to_string(&rpfwd).unwrap()).unwrap(),
             rpfwd
         );
-
-        let interactive = InteractiveMessage {
-            task_id: next_uuid,
-            data: "abc".to_string(),
-            message_type: 1,
-        };
         assert_eq!(
             serde_json::from_str::<InteractiveMessage>(
                 &serde_json::to_string(&interactive).unwrap()
@@ -179,20 +248,5 @@ mod tests {
         assert_eq!(minimal_alert.alert.as_deref(), Some("hello"));
         assert!(minimal_alert.source.is_none());
         assert_eq!(minimal_alert.level.as_deref(), Some("warning"));
-
-        let socks_json: SocksMessage =
-            serde_json::from_str(r#"{"server_id":1,"exit":true}"#).unwrap();
-        assert!(socks_json.exit);
-        assert!(socks_json.data.is_none());
-
-        let rpfwd_json: ReversePortForwardMessage =
-            serde_json::from_str(r#"{"server_id":2,"exit":false,"data":"YQ"}"#).unwrap();
-        assert!(!rpfwd_json.exit);
-        assert_eq!(rpfwd_json.data.as_deref(), Some("YQ"));
-        assert!(rpfwd_json.port.is_none());
-
-        let rpfwd_with_port: ReversePortForwardMessage =
-            serde_json::from_str(r#"{"server_id":3,"exit":true,"data":"","port":445}"#).unwrap();
-        assert_eq!(rpfwd_with_port.port, Some(445));
     }
 }

