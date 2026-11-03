@@ -9,7 +9,6 @@ pub enum Error {
     Base64,
     Utf8,
     Json,
-    Raw,
     InvalidFormat,
     Uuid,
     #[cfg(debug_assertions)]
@@ -24,7 +23,6 @@ impl fmt::Display for Error {
                 Error::Base64 => write!(f, "base64 decode failed"),
                 Error::Utf8 => write!(f, "invalid utf-8"),
                 Error::Json => write!(f, "json (de)serialization failed"),
-                Error::Raw => write!(f, "raw binary (de)serialization failed"),
                 Error::InvalidFormat => write!(f, "message too short or malformed"),
                 Error::Uuid => write!(f, "invalid uuid"),
                 Error::Message(m) => write!(f, "{}", m),
