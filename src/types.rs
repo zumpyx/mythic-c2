@@ -71,6 +71,10 @@ pub struct CheckinRequest {
     pub extra_info: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub delegates: Vec<Delegate>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub alerts: Vec<Alert>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub edges: Vec<Edge>,
 }
 
 impl CheckinRequest {
@@ -95,6 +99,8 @@ impl CheckinRequest {
             sleep_info: None,
             extra_info: None,
             delegates: Vec::new(),
+            alerts: Vec::new(),
+            edges: Vec::new(),
         }
     }
 
@@ -295,14 +301,16 @@ pub struct ProcessListing {
 pub struct Edge {
     pub source: String,
     pub destination: String,
-    pub action: String, // "add" | "remove"
+    pub action: String,
     pub c2_profile: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct CommandUpdate {
-    pub action: String, // "add"
+    pub action: String,
     pub cmd: String,
 }
 
@@ -353,7 +361,7 @@ pub struct Token {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct CallbackToken {
-    pub action: String, // "add" | "remove"
+    pub action: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub host: Option<String>,
     pub token_id: u32,
@@ -362,7 +370,6 @@ pub struct CallbackToken {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Download {
-    // Registration
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub total_size: Option<i64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -377,7 +384,6 @@ pub struct Download {
     pub filename: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub full_path: Option<String>,
-    // Data
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub file_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -408,7 +414,7 @@ pub struct Upload {
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Alert {
     pub alert: String,
-    pub level: String, // "info" | "warning" | "error"
+    pub level: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -444,7 +450,6 @@ pub struct CallbackUpdate {
     pub extra: Option<Value>,
 }
 
-// Top-level channel messages
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct SocksMessage {
@@ -472,7 +477,7 @@ pub struct InteractiveMessage {
 }
 
 // ---------------------------------------------------------------------------
-// Task responses (the big one)
+// Task responses
 // ---------------------------------------------------------------------------
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -584,6 +589,10 @@ pub struct GetTaskingRequest {
     pub rpfwd: Vec<RpfwdMessage>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub interactive: Vec<InteractiveMessage>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub alerts: Vec<Alert>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub edges: Vec<Edge>,
 }
 
 impl GetTaskingRequest {
@@ -597,6 +606,8 @@ impl GetTaskingRequest {
             socks: Vec::new(),
             rpfwd: Vec::new(),
             interactive: Vec::new(),
+            alerts: Vec::new(),
+            edges: Vec::new(),
         }
     }
 
@@ -621,6 +632,10 @@ pub struct GetTaskingResponse {
     pub rpfwd: Vec<RpfwdMessage>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub interactive: Vec<InteractiveMessage>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub alerts: Vec<Alert>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub edges: Vec<Edge>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -636,6 +651,10 @@ pub struct PostResponseRequest {
     pub rpfwd: Vec<RpfwdMessage>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub interactive: Vec<InteractiveMessage>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub alerts: Vec<Alert>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub edges: Vec<Edge>,
 }
 
 impl PostResponseRequest {
@@ -647,6 +666,8 @@ impl PostResponseRequest {
             socks: Vec::new(),
             rpfwd: Vec::new(),
             interactive: Vec::new(),
+            alerts: Vec::new(),
+            edges: Vec::new(),
         }
     }
 }
@@ -665,4 +686,8 @@ pub struct PostResponseResponse {
     pub rpfwd: Vec<RpfwdMessage>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub interactive: Vec<InteractiveMessage>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub alerts: Vec<Alert>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub edges: Vec<Edge>,
 }
