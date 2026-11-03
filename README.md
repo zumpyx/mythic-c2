@@ -2,13 +2,9 @@
 
 Minimal **`no_std` + `alloc`** Rust library implementing the **Mythic C2 4.0** agent message structures and wire format for **plaintext (unencrypted) communication only**.
 
-This is a pure protocol library. It has no dependency on `std` and is suitable for freestanding agent environments that only need correct message structures and encoding.
+Pure protocol library — no `std` dependency. Suitable for freestanding agents.
 
-## Features
-
-| Feature | Description |
-|---------|-------------|
-| `json` (default) | `serde` + `serde_json` (alloc) |
+## Usage
 
 ```toml
 mythic-c2 = "0.3"
@@ -20,28 +16,30 @@ mythic-c2 = "0.3"
 Base64( UUID(36 ASCII chars) + JSON body )
 ```
 
-The `wire` module owns only the UUID prefix + base64 wrapping. Body serialization is pure serde.
-
 - First check-in uses the **payload UUID**.
-- Subsequent messages use the **callback UUID** returned by Mythic.
-- The body is never encrypted.
+- Subsequent messages use the **callback UUID**.
+- Body is never encrypted.
+- `encode_plaintext_urlsafe` for query-parameter C2 profiles.
+- `decode_plaintext` accepts both standard and URL-safe base64.
 
-## Supported messages & features
+## Supported messages
 
 - Checkin / CheckinResponse
 - GetTaskingRequest / GetTaskingResponse
 - PostResponseRequest / PostResponseResponse
-- Full hooking features inside `TaskResponse`:
-  - user_output, completed, status, error, process_response
-  - file_browser, removed_files, credentials, artifacts, processes
-  - edges, commands, keylogs, tokens, callback_tokens
-  - download (offset + chunk modes), upload, alerts, agent_rpc, callback
-- Top-level: delegates, socks, rpfwd, interactive
 
-## Key design points
+Hooking features inside `TaskResponse` and/or at top level:
 
-- `#![no_std]` + `extern crate alloc`
-- Action strings obfuscated at compile time with `obfstr`
+`user_output`, `completed`, `status`, `error`, `process_response`,
+`file_browser`, `removed_files`, `credentials`, `artifacts`, `processes`,
+`edges`, `commands`, `keylogs`, `tokens`, `callback_tokens`,
+`download`, `upload`, `alerts`, `agent_rpc`, `callback`,
+`delegates`, `socks`, `rpfwd`, `interactive`
+
+## Design notes
+
+- `#![no_std]` + `alloc`
+- Action strings obfuscated at compile time (`obfstr`)
 - Error text only under `debug_assertions`
 - Optional fields use `skip_serializing_if`
 - Open-ended fields use `serde_json::Value`
