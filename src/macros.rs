@@ -10,11 +10,11 @@ macro_rules! debug_msg {
     ($($arg:tt)*) => {
         #[cfg(debug_assertions)]
         {
-            format!($($arg)*)
+            alloc::format!($($arg)*)
         }
         #[cfg(not(debug_assertions))]
         {
-            String::new()
+            alloc::string::String::new()
         }
     };
 }
