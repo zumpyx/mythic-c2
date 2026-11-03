@@ -20,43 +20,43 @@ use super::features::*;
 pub struct CheckinRequest {
     pub action: String,
     pub uuid: String,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Vec::is_empty"))]
     pub ips: Vec<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
     pub os: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
     pub user: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
     pub host: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
     pub pid: Option<u32>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
     pub architecture: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
     pub domain: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
     pub integrity_level: Option<u32>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
     pub external_ip: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
     pub encryption_key: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
     pub decryption_key: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
     pub process_name: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
     pub cwd: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
     pub impersonation_context: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
     pub sleep_info: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
     pub extra_info: Option<String>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Vec::is_empty"))]
     pub delegates: Vec<Delegate>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Vec::is_empty"))]
     pub alerts: Vec<Alert>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Vec::is_empty"))]
     pub edges: Vec<Edge>,
 }
 
@@ -173,48 +173,48 @@ pub struct Task {
 pub struct TaskResponse {
     pub task_id: String,
 
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
     pub user_output: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
     pub completed: Option<bool>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
     pub status: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
     pub error: Option<String>,
 
     #[cfg(feature = "json")]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
     pub process_response: Option<Value>,
 
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
     pub file_browser: Option<FileBrowserEntry>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Vec::is_empty"))]
     pub removed_files: Vec<RemovedFile>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Vec::is_empty"))]
     pub credentials: Vec<Credential>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Vec::is_empty"))]
     pub artifacts: Vec<Artifact>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
     pub processes: Option<ProcessListing>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Vec::is_empty"))]
     pub edges: Vec<Edge>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Vec::is_empty"))]
     pub commands: Vec<CommandUpdate>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Vec::is_empty"))]
     pub keylogs: Vec<Keylog>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Vec::is_empty"))]
     pub tokens: Vec<Token>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Vec::is_empty"))]
     pub callback_tokens: Vec<CallbackToken>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
     pub download: Option<Download>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
     pub upload: Option<Upload>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Vec::is_empty"))]
     pub alerts: Vec<Alert>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
     pub agent_rpc: Option<AgentRpc>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
     pub callback: Option<CallbackUpdate>,
 }
 
@@ -247,12 +247,12 @@ impl TaskResponse {
 pub struct TaskResponseAck {
     pub task_id: String,
     pub status: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
     pub error: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
     pub file_id: Option<String>,
     #[cfg(feature = "json")]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
     pub output: Option<Value>,
 }
 
@@ -265,21 +265,21 @@ pub struct TaskResponseAck {
 pub struct GetTaskingRequest {
     pub action: String,
     pub tasking_size: i32,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
     pub get_delegate_tasks: Option<bool>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Vec::is_empty"))]
     pub delegates: Vec<Delegate>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Vec::is_empty"))]
     pub responses: Vec<TaskResponse>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Vec::is_empty"))]
     pub socks: Vec<SocksMessage>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Vec::is_empty"))]
     pub rpfwd: Vec<RpfwdMessage>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Vec::is_empty"))]
     pub interactive: Vec<InteractiveMessage>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Vec::is_empty"))]
     pub alerts: Vec<Alert>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Vec::is_empty"))]
     pub edges: Vec<Edge>,
 }
 
@@ -309,21 +309,21 @@ impl GetTaskingRequest {
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct GetTaskingResponse {
     pub action: String,
-    #[serde(default)]
+    #[cfg_attr(feature = "json", serde(default))]
     pub tasks: Vec<Task>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Vec::is_empty"))]
     pub delegates: Vec<Delegate>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Vec::is_empty"))]
     pub responses: Vec<TaskResponseAck>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Vec::is_empty"))]
     pub socks: Vec<SocksMessage>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Vec::is_empty"))]
     pub rpfwd: Vec<RpfwdMessage>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Vec::is_empty"))]
     pub interactive: Vec<InteractiveMessage>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Vec::is_empty"))]
     pub alerts: Vec<Alert>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Vec::is_empty"))]
     pub edges: Vec<Edge>,
 }
 
@@ -332,17 +332,17 @@ pub struct GetTaskingResponse {
 pub struct PostResponseRequest {
     pub action: String,
     pub responses: Vec<TaskResponse>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Vec::is_empty"))]
     pub delegates: Vec<Delegate>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Vec::is_empty"))]
     pub socks: Vec<SocksMessage>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Vec::is_empty"))]
     pub rpfwd: Vec<RpfwdMessage>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Vec::is_empty"))]
     pub interactive: Vec<InteractiveMessage>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Vec::is_empty"))]
     pub alerts: Vec<Alert>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Vec::is_empty"))]
     pub edges: Vec<Edge>,
 }
 
@@ -365,18 +365,18 @@ impl PostResponseRequest {
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct PostResponseResponse {
     pub action: String,
-    #[serde(default)]
+    #[cfg_attr(feature = "json", serde(default))]
     pub responses: Vec<TaskResponseAck>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Vec::is_empty"))]
     pub delegates: Vec<Delegate>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Vec::is_empty"))]
     pub socks: Vec<SocksMessage>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Vec::is_empty"))]
     pub rpfwd: Vec<RpfwdMessage>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Vec::is_empty"))]
     pub interactive: Vec<InteractiveMessage>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Vec::is_empty"))]
     pub alerts: Vec<Alert>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Vec::is_empty"))]
     pub edges: Vec<Edge>,
 }

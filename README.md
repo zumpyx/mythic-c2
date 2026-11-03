@@ -7,7 +7,7 @@ Pure protocol library — no `std` dependency. Suitable for freestanding agents.
 ## Usage
 
 ```toml
-mythic-c2 = "0.4"
+mythic-c2 = "4.0"
 ```
 
 ## Scope
