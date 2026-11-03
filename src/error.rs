@@ -11,8 +11,6 @@ pub enum Error {
     Json,
     InvalidFormat,
     Uuid,
-    #[cfg(debug_assertions)]
-    Message(alloc::string::String),
 }
 
 impl fmt::Display for Error {
@@ -25,7 +23,6 @@ impl fmt::Display for Error {
                 Error::Json => write!(f, "json (de)serialization failed"),
                 Error::InvalidFormat => write!(f, "message too short or malformed"),
                 Error::Uuid => write!(f, "invalid uuid"),
-                Error::Message(m) => write!(f, "{}", m),
             }
         }
         #[cfg(not(debug_assertions))]
