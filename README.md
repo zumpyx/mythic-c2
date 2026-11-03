@@ -1,39 +1,42 @@
 # mythic-c2
 
-Minimal Rust library implementing the **Mythic C2 4.0** agent message structures
-and wire format for **plaintext (unencrypted) communication only**.
+Minimal **`no_std` + `alloc`** Rust library implementing the **Mythic C2 4.0** agent message structures and wire format for **plaintext (unencrypted) communication only**.
 
-This rewrite focuses exclusively on:
+This is a pure protocol library. It has no dependency on `std` and is suitable for freestanding agent environments that only need correct message structures and encoding.
 
-- Plaintext check-in
-- `get_tasking`
-- `post_response`
-- Optional P2P `delegates`
+## Features
 
-No encryption, no RSA staging, no transport layer. Designed for agents that
-perform their own C2 profile handling and only need correct message structures
-and Base64(UUID + JSON) encoding.
+| Feature | Description | Wire body |
+|---------|-------------|-----------|
+| `json` (default) | `serde` + `serde_json` (alloc) | JSON |
+| `raw` | Length-prefixed binary using `zerocopy` for fixed headers | Compact binary |
+
+```toml
+# JSON (default)
+mythic-c2 = "0.4"
+
+# Raw binary
+mythic-c2 = { version = "0.4", default-features = false, features = ["raw"] }
+```
 
 ## Wire format
 
 ```
-Base64( UUID(36 ASCII chars) + JSON bytes )
+Base64( UUID(36 ASCII chars) + body )
 ```
 
 - First check-in uses the **payload UUID**.
 - Subsequent messages use the **callback UUID** returned by Mythic.
-- The JSON body is never encrypted.
+- The body is never encrypted.
 
 ## Key design points
 
-- Protocol action strings (`"checkin"`, `"get_tasking"`, `"post_response"`, `"success"`)
-  are obfuscated at compile time with `obfstr`.
-- Error `Display` implementations only emit descriptive text under
-  `debug_assertions`. Release builds report a generic `"error"`.
-- Minimal dependencies: `serde`, `serde_json`, `base64`, `uuid`, `obfstr`.
-- Release profile is optimized for size and stripping.
+- `#![no_std]` + `extern crate alloc`. No `std` dependency.
+- Protocol action strings (`"checkin"`, `"get_tasking"`, `"post_response"`, `"success"`) are obfuscated at compile time with `obfstr`.
+- Error `Display` implementations only emit descriptive text under `debug_assertions`. Release builds report a generic `"error"`.
+- Minimal dependencies: `base64`, `obfstr`, and either `serde`/`serde_json` or `zerocopy`.
 
-## Quick start
+## Quick start (JSON)
 
 ```rust
 use mythic::{CheckinRequest, encode_plaintext, decode_plaintext, CheckinResponse};
@@ -53,13 +56,27 @@ let (uuid, resp): (String, CheckinResponse) = decode_plaintext(&reply)?;
 let callback_uuid = resp.id;
 ```
 
-See `examples/plaintext_checkin.rs` for a complete round-trip demonstration.
+## Quick start (raw)
+
+```rust
+use mythic::{CheckinRequest, raw_encode_checkin, raw_decode_checkin_resp};
+
+let payload_uuid = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
+let checkin = CheckinRequest::new(payload_uuid).with_os("linux");
+
+let packet = raw_encode_checkin(payload_uuid, &checkin)?;
+// ...
+let (uuid, resp) = raw_decode_checkin_resp(&reply)?;
+```
 
 ## Building
 
 ```bash
-# Native
+# Native (json)
 cargo build --release
+
+# Raw only
+cargo build --release --no-default-features --features raw
 
 # Cross-compile with Zig (example)
 cargo zigbuild --release --target x86_64-unknown-linux-musl
