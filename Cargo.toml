@@ -1,15 +1,15 @@
 [package]
 name = "mythic-c2"
-version = "0.2.2"
+version = "0.3.0"
 edition = "2024"
 license = "GPL-3.0-only"
 authors = ["Zumpyx <zumpyx@qq.com>"]
-description = "Mythic C2 agent library — message encoding, AES-256-CBC-HMAC crypto, and HTTP/HTTPX transport (minreq + rustls)"
+description = "Mythic C2 4.0 plaintext agent protocol structures and encoding (no encryption)"
 repository = "https://github.com/zumpyx/mythic-c2"
 documentation = "https://docs.rs/mythic-c2"
 readme = "README.md"
 keywords = ["mythic", "c2", "red-team", "agent", "protocol"]
-categories = ["network-programming", "cryptography", "development-tools"]
+categories = ["network-programming", "development-tools"]
 
 [lib]
 name = "mythic"
@@ -18,30 +18,9 @@ path = "src/lib.rs"
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-serde-tuple-vec-map = "1.0.1"
+base64 = "0.22"
 uuid = { version = "1", features = ["serde", "v4"] }
-base64 = { version = "0.22" }
-aes = "0.8.3"
-cbc = "0.1"
-cipher = { version = "0.4", features = ["alloc"] }
-hmac = "0.12.1"
-sha1 = "0.10.6"
-sha2 = "0.10.6"
-rand = "0.8.5"
-obfstr = "0.4.4"
-rsa = "0.9.10"
-minreq = { version = "3.0.0", features = ["proxy"] }
-heapless = { version = "0.9.3", features = ["zeroize"] }
-spin = "0.12.1"
-blake2 = { version = "0.10.6", default-features = false }
-
-
-[dev-dependencies]
-httptest = "0.15"
-
-[profile.dev]
-opt-level = 3
-panic = "abort"
+obfstr = "0.4"
 
 [profile.release]
 opt-level = 3

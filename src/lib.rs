@@ -1,17 +1,23 @@
-#![doc = include_str!("../README.md")]
+//! Mythic C2 4.0 plaintext protocol library.
+//!
+//! Focuses exclusively on unencrypted (plaintext) checkin, get_tasking and
+//! post_response message structures and Base64(UUID + JSON) wire format.
+//!
+//! Error messages and debug strings are only present in debug builds.
+//! Protocol action strings are obfuscated at compile time via `obfstr`.
+
+#![deny(unsafe_code)]
 
 #[doc(hidden)]
 pub use obfstr as libobfstr;
 
 #[macro_use]
-pub mod macros;
-pub mod common;
+mod macros;
 
-pub mod agent;
-pub mod c2;
 pub mod error;
+pub mod types;
+pub mod wire;
 
-pub use agent::MythicAgent;
-pub use c2::{C2Trait, MythicC2};
-pub use common::{base64_decode, base64_encode};
-pub use error::{MythicError, MythicResult};
+pub use error::{Error, Result};
+pub use types::*;
+pub use wire::{decode_plaintext, encode_plaintext};
