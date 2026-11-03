@@ -1,16 +1,19 @@
-use std::fmt;
+use core::fmt;
 
-/// Library error. Display implementation emits descriptive text only under
-/// `debug_assertions`; release builds report a generic error.
+/// Library error.
+///
+/// The `Display` implementation emits descriptive text only under
+/// `debug_assertions`. Release builds report a generic error.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Error {
     Base64,
     Utf8,
     Json,
+    Raw,
     InvalidFormat,
     Uuid,
     #[cfg(debug_assertions)]
-    Message(String),
+    Message(alloc::string::String),
 }
 
 impl fmt::Display for Error {
@@ -21,6 +24,7 @@ impl fmt::Display for Error {
                 Error::Base64 => write!(f, "base64 decode failed"),
                 Error::Utf8 => write!(f, "invalid utf-8"),
                 Error::Json => write!(f, "json (de)serialization failed"),
+                Error::Raw => write!(f, "raw binary (de)serialization failed"),
                 Error::InvalidFormat => write!(f, "message too short or malformed"),
                 Error::Uuid => write!(f, "invalid uuid"),
                 Error::Message(m) => write!(f, "{}", m),
@@ -34,6 +38,4 @@ impl fmt::Display for Error {
     }
 }
 
-impl std::error::Error for Error {}
-
-pub type Result<T> = std::result::Result<T, Error>;
+pub type Result<T> = core::result::Result<T, Error>;
