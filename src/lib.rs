@@ -27,4 +27,4 @@ pub use error::{Error, Result};
 pub use types::*;
 
 #[cfg(feature = "json")]
-pub use wire::{decode_plaintext, encode_plaintext};
+pub use wire::{decode_plaintext, encode_plaintext, encode_plaintext_urlsafe};
