@@ -20,17 +20,31 @@ mythic-c2 = "0.3"
 Base64( UUID(36 ASCII chars) + JSON body )
 ```
 
+The `wire` module owns only the UUID prefix + base64 wrapping. Body serialization is pure serde.
+
 - First check-in uses the **payload UUID**.
 - Subsequent messages use the **callback UUID** returned by Mythic.
 - The body is never encrypted.
 
+## Supported messages & features
+
+- Checkin / CheckinResponse
+- GetTaskingRequest / GetTaskingResponse
+- PostResponseRequest / PostResponseResponse
+- Full hooking features inside `TaskResponse`:
+  - user_output, completed, status, error, process_response
+  - file_browser, removed_files, credentials, artifacts, processes
+  - edges, commands, keylogs, tokens, callback_tokens
+  - download (offset + chunk modes), upload, alerts, agent_rpc, callback
+- Top-level: delegates, socks, rpfwd, interactive
+
 ## Key design points
 
-- `#![no_std]` + `extern crate alloc`. No `std` dependency.
-- Protocol action strings (`"checkin"`, `"get_tasking"`, `"post_response"`, `"success"`) are obfuscated at compile time with `obfstr`.
-- Error `Display` implementations only emit descriptive text under `debug_assertions`. Release builds report a generic `"error"`.
-- Minimal dependencies: `base64`, `obfstr`, `serde` / `serde_json`.
-- Optional fields are skipped when empty via `skip_serializing_if`.
+- `#![no_std]` + `extern crate alloc`
+- Action strings obfuscated at compile time with `obfstr`
+- Error text only under `debug_assertions`
+- Optional fields use `skip_serializing_if`
+- Open-ended fields use `serde_json::Value`
 
 ## Quick start
 
@@ -46,22 +60,8 @@ let checkin = CheckinRequest::new(payload_uuid)
 
 let packet = encode_plaintext(payload_uuid, &checkin)?;
 
-// ... send packet via your C2 profile, receive reply ...
-
 let (uuid, resp): (String, CheckinResponse) = decode_plaintext(&reply)?;
-let callback_uuid = resp.id;
 ```
-
-## Building
-
-```bash
-cargo build --release
-
-# Cross-compile with Zig (example)
-cargo zigbuild --release --target x86_64-unknown-linux-musl
-```
-
-Requires Rust 1.99+ and (for zigbuild) Zig 0.17+.
 
 ## License
 

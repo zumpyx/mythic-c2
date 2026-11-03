@@ -1,6 +1,8 @@
 //! Plaintext wire format.
 //!
-//! `Base64( UUID(36 ASCII bytes) + JSON body )`
+//! The protocol layer is `Base64( UUID(36 ASCII bytes) + JSON body )`.
+//! Serialization of the body is handled by serde; this module only owns the
+//! UUID prefix, concatenation and base64 wrapping.
 
 use crate::error::{Error, Result};
 use alloc::string::String;
