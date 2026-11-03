@@ -1,16 +1,20 @@
-//! Roundtrip tests for Mythic 4.0 plaintext wire format.
+//! Serde roundtrip tests for Mythic 4.0 message structures.
 //!
 //! These tests use `std` for convenience; the library itself remains `no_std`.
 
 use mythic::{
     Alert, CheckinRequest, CheckinResponse, Credential, Edge, FileBrowserEntry,
     GetTaskingRequest, GetTaskingResponse, PostResponseRequest, Task, TaskResponse,
-    decode_plaintext, encode_plaintext, encode_plaintext_urlsafe,
 };
 
 const PAYLOAD_UUID: &str = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
 const CALLBACK_UUID: &str = "11111111-2222-3333-4444-555555555555";
 const TASK_ID: &str = "ffffffff-eeee-dddd-cccc-bbbbbbbbbbbb";
+
+fn roundtrip<T: serde::Serialize + serde::de::DeserializeOwned>(value: &T) -> T {
+    let json = serde_json::to_vec(value).unwrap();
+    serde_json::from_slice(&json).unwrap()
+}
 
 #[test]
 fn checkin_roundtrip() {
@@ -27,10 +31,8 @@ fn checkin_roundtrip() {
         .with_process_name("agent")
         .with_cwd("/tmp");
 
-    let packet = encode_plaintext(PAYLOAD_UUID, &req).unwrap();
-    let (uuid, decoded): (String, CheckinRequest) = decode_plaintext(&packet).unwrap();
+    let decoded: CheckinRequest = roundtrip(&req);
 
-    assert_eq!(uuid, PAYLOAD_UUID);
     assert_eq!(decoded.action, "checkin");
     assert_eq!(decoded.uuid, PAYLOAD_UUID);
     assert_eq!(decoded.ips, vec!["192.168.1.10", "10.0.0.5"]);
@@ -42,17 +44,15 @@ fn checkin_roundtrip() {
 #[test]
 fn checkin_response_roundtrip() {
     let resp = CheckinResponse::success(CALLBACK_UUID);
-    let packet = encode_plaintext(PAYLOAD_UUID, &resp).unwrap();
-    let (uuid, decoded): (String, CheckinResponse) = decode_plaintext(&packet).unwrap();
+    let decoded: CheckinResponse = roundtrip(&resp);
 
-    assert_eq!(uuid, PAYLOAD_UUID);
     assert!(decoded.is_success());
     assert_eq!(decoded.id, CALLBACK_UUID);
 }
 
 #[test]
 fn get_tasking_with_features() {
-    let mut fb = FileBrowserEntry {
+    let fb = FileBrowserEntry {
         host: Some("host".into()),
         is_file: false,
         name: "/".into(),
@@ -120,10 +120,8 @@ fn get_tasking_with_features() {
         }],
     };
 
-    let packet = encode_plaintext(CALLBACK_UUID, &req).unwrap();
-    let (uuid, decoded): (String, GetTaskingRequest) = decode_plaintext(&packet).unwrap();
+    let decoded: GetTaskingRequest = roundtrip(&req);
 
-    assert_eq!(uuid, CALLBACK_UUID);
     assert_eq!(decoded.tasking_size, -1);
     assert_eq!(decoded.responses.len(), 1);
     assert!(decoded.responses[0].completed.unwrap_or(false));
@@ -140,10 +138,8 @@ fn post_response_roundtrip() {
         .with_status("success");
 
     let req = PostResponseRequest::new(vec![tr]);
-    let packet = encode_plaintext(CALLBACK_UUID, &req).unwrap();
-    let (uuid, decoded): (String, PostResponseRequest) = decode_plaintext(&packet).unwrap();
+    let decoded: PostResponseRequest = roundtrip(&req);
 
-    assert_eq!(uuid, CALLBACK_UUID);
     assert_eq!(decoded.action, "post_response");
     assert_eq!(decoded.responses.len(), 1);
     assert_eq!(decoded.responses[0].status.as_deref(), Some("success"));
@@ -168,46 +164,9 @@ fn get_tasking_response_with_tasks() {
         edges: vec![],
     };
 
-    let packet = encode_plaintext(CALLBACK_UUID, &resp).unwrap();
-    let (uuid, decoded): (String, GetTaskingResponse) = decode_plaintext(&packet).unwrap();
+    let decoded: GetTaskingResponse = roundtrip(&resp);
 
-    assert_eq!(uuid, CALLBACK_UUID);
     assert_eq!(decoded.tasks.len(), 1);
     assert_eq!(decoded.tasks[0].command, "shell");
     assert_eq!(decoded.tasks[0].parameters, "whoami");
-}
-
-#[test]
-fn urlsafe_roundtrip() {
-    let req = CheckinRequest::new(PAYLOAD_UUID).with_user("user+name");
-    let packet = encode_plaintext_urlsafe(PAYLOAD_UUID, &req).unwrap();
-
-    // URL-safe should not contain + or /
-    assert!(!packet.contains('+'));
-    assert!(!packet.contains('/'));
-
-    let (uuid, decoded): (String, CheckinRequest) = decode_plaintext(&packet).unwrap();
-    assert_eq!(uuid, PAYLOAD_UUID);
-    assert_eq!(decoded.user.as_deref(), Some("user+name"));
-}
-
-#[test]
-fn invalid_uuid_length() {
-    let req = CheckinRequest::new(PAYLOAD_UUID);
-    let err = encode_plaintext("too-short", &req).unwrap_err();
-    assert_eq!(err, mythic::Error::Uuid);
-}
-
-#[test]
-fn invalid_base64() {
-    let err = decode_plaintext::<CheckinRequest>("!!!not-base64!!!").unwrap_err();
-    assert_eq!(err, mythic::Error::Base64);
-}
-
-#[test]
-fn too_short_message() {
-    use base64::{Engine as _, engine::general_purpose::STANDARD};
-    let short = STANDARD.encode(b"short");
-    let err = decode_plaintext::<CheckinRequest>(&short).unwrap_err();
-    assert_eq!(err, mythic::Error::InvalidFormat);
 }

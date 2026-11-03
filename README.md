@@ -1,26 +1,26 @@
 # mythic-c2
 
-Minimal **`no_std` + `alloc`** Rust library implementing the **Mythic C2 4.0** agent message structures and wire format for **plaintext (unencrypted) communication only**.
+Minimal **`no_std` + `alloc`** Rust library implementing the **Mythic C2 4.0** agent message structures for **plaintext (unencrypted) communication**.
 
 Pure protocol library — no `std` dependency. Suitable for freestanding agents.
 
 ## Usage
 
 ```toml
-mythic-c2 = "0.3"
+mythic-c2 = "0.4"
 ```
 
-## Wire format
+## Scope
+
+The library provides the message types only. UUID prefixing and base64 wrapping are the agent's responsibility:
 
 ```
-Base64( UUID(36 ASCII chars) + JSON body )
+agent: Base64( UUID(36) + JSON(message) )
 ```
 
 - First check-in uses the **payload UUID**.
 - Subsequent messages use the **callback UUID**.
-- Body is never encrypted.
-- `encode_plaintext_urlsafe` for query-parameter C2 profiles.
-- `decode_plaintext` accepts both standard and URL-safe base64.
+- Body is never encrypted by this library.
 
 ## Supported messages
 
@@ -47,7 +47,7 @@ Hooking features inside `TaskResponse` and/or at top level:
 ## Quick start
 
 ```rust
-use mythic::{CheckinRequest, encode_plaintext, decode_plaintext, CheckinResponse};
+use mythic::CheckinRequest;
 
 let payload_uuid = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
 
@@ -56,9 +56,8 @@ let checkin = CheckinRequest::new(payload_uuid)
     .with_user("root")
     .with_pid(1337);
 
-let packet = encode_plaintext(payload_uuid, &checkin)?;
-
-let (uuid, resp): (String, CheckinResponse) = decode_plaintext(&reply)?;
+let body = serde_json::to_vec(&checkin)?;
+// agent then does: base64(payload_uuid + body)
 ```
 
 ## License

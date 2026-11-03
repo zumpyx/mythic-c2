@@ -1,6 +1,6 @@
 [package]
 name = "mythic-c2"
-version = "0.3.3"
+version = "0.4.0"
 edition = "2024"
 license = "GPL-3.0-only"
 authors = ["Zumpyx <zumpyx@qq.com>"]
@@ -20,13 +20,12 @@ default = ["json"]
 json = ["dep:serde", "dep:serde_json"]
 
 [dependencies]
-base64 = { version = "0.22", default-features = false, features = ["alloc"] }
 obfstr = { version = "0.4", default-features = false }
 serde = { version = "1", default-features = false, features = ["derive", "alloc"], optional = true }
 serde_json = { version = "1", default-features = false, features = ["alloc"], optional = true }
 
 [dev-dependencies]
-base64 = "0.22"
+serde_json = "1"
 
 [profile.release]
 opt-level = 3

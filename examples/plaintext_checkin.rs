@@ -1,10 +1,11 @@
 //! Minimal plaintext check-in example for Mythic 4.0.
 //!
 //! This binary uses `std` for convenience; the library itself is `no_std` + `alloc`.
+//! UUID prefixing and base64 wrapping are left to the agent.
 
-use mythic::{CheckinRequest, CheckinResponse, decode_plaintext, encode_plaintext};
+use mythic::{CheckinRequest, CheckinResponse};
 
-fn main() -> Result<(), mythic::Error> {
+fn main() {
     let payload_uuid = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
 
     let checkin = CheckinRequest::new(payload_uuid)
@@ -15,16 +16,12 @@ fn main() -> Result<(), mythic::Error> {
         .with_pid(1234)
         .with_architecture("x64");
 
-    let encoded = encode_plaintext(payload_uuid, &checkin)?;
-    println!("checkin packet: {}", encoded);
+    let body = serde_json::to_vec(&checkin).unwrap();
+    println!("checkin body: {}", String::from_utf8_lossy(&body));
 
-    // Simulate server response
+    // Agent would then do: base64(payload_uuid + body)
+
     let resp = CheckinResponse::success("11111111-2222-3333-4444-555555555555");
-    let resp_encoded = encode_plaintext(payload_uuid, &resp)?;
-    let (outer, decoded): (String, CheckinResponse) = decode_plaintext(&resp_encoded)?;
-    assert_eq!(outer, payload_uuid);
-    assert!(decoded.is_success());
-    println!("callback uuid: {}", decoded.id);
-
-    Ok(())
+    assert!(resp.is_success());
+    println!("callback uuid: {}", resp.id);
 }
