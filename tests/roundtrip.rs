@@ -87,6 +87,7 @@ fn get_tasking_with_features() {
         modify_time: Some(1700000000),
         size: Some(0),
         update_deleted: None,
+        set_as_user_output: None,
         files: vec![FileBrowserEntry {
             host: None,
             is_file: true,
@@ -97,6 +98,7 @@ fn get_tasking_with_features() {
             modify_time: None,
             size: Some(42),
             update_deleted: None,
+            set_as_user_output: None,
             files: vec![],
             extra: None,
         }],
@@ -376,6 +378,7 @@ fn post_response_response_and_ack() {
             total_chunks: None,
             chunk_size: None,
             chunk_num: None,
+            chunk_data: None,
         }],
         delegates: vec![],
         socks: vec![],
@@ -402,6 +405,7 @@ fn nested_file_browser() {
         modify_time: None,
         size: None,
         update_deleted: Some(true),
+        set_as_user_output: None,
         files: vec![FileBrowserEntry {
             host: None,
             is_file: false,
@@ -412,6 +416,7 @@ fn nested_file_browser() {
             modify_time: None,
             size: None,
             update_deleted: None,
+            set_as_user_output: None,
             files: vec![FileBrowserEntry {
                 host: None,
                 is_file: true,
@@ -422,6 +427,7 @@ fn nested_file_browser() {
                 modify_time: Some(2),
                 size: Some(3),
                 update_deleted: None,
+                set_as_user_output: None,
                 files: vec![],
                 extra: None,
             }],
@@ -484,6 +490,7 @@ fn mythic_4_resume_token_and_artifact_fields() {
         total_chunks: None,
         chunk_size: None,
         chunk_num: None,
+        chunk_data: None,
     };
     let decoded_ack: TaskResponseAck = roundtrip(&ack);
     assert_eq!(decoded_ack.transfer_type.as_deref(), Some("offset"));

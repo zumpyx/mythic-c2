@@ -270,6 +270,9 @@ pub struct TaskResponseAck {
     pub chunk_size: Option<u32>,
     #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
     pub chunk_num: Option<u32>,
+    /// Base64 chunk returned by Mythic on upload responses.
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
+    pub chunk_data: Option<String>,
 }
 
 // ---------------------------------------------------------------------------

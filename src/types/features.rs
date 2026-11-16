@@ -39,6 +39,9 @@ pub struct FileBrowserEntry {
     pub size: Option<i64>,
     #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
     pub update_deleted: Option<bool>,
+    /// When true, Mythic stringifies the listing into user_output.
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
+    pub set_as_user_output: Option<bool>,
     #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Vec::is_empty"))]
     pub files: Vec<FileBrowserEntry>,
     #[cfg(feature = "json")]
