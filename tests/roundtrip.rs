@@ -179,6 +179,7 @@ fn get_tasking_response_with_tasks() {
             parameters: "whoami".into(),
             timestamp: 1700000000.0,
             id: TASK_ID.into(),
+            token: Some(12345),
         }],
         delegates: vec![],
         responses: vec![],
@@ -212,6 +213,8 @@ fn task_response_hooking_features() {
         base_artifact: "Process Create".into(),
         artifact: "cmd.exe".into(),
         host: Some("h".into()),
+        needs_cleanup: Some(true),
+        resolved: Some(false),
     }];
     tr.processes = Some(ProcessListing {
         host: Some("h".into()),
@@ -245,6 +248,7 @@ fn task_response_hooking_features() {
     tr.tokens = vec![Token {
         token_id: 1,
         host: Some("h".into()),
+        description: Some("elevated".into()),
         user: Some("admin".into()),
         groups: None,
         privileges: None,
@@ -264,6 +268,7 @@ fn task_response_hooking_features() {
         action: "add".into(),
         host: Some("h".into()),
         token_id: 1,
+        token: None,
     }];
     tr.download = Some(Download {
         total_size: Some(1024),
@@ -277,6 +282,7 @@ fn task_response_hooking_features() {
         chunk_offset: None,
         chunk_num: Some(1),
         chunk_data: Some("AAAA".into()),
+        resume: None,
     });
     tr.upload = Some(Upload {
         file_id: "file-uuid".into(),
@@ -364,6 +370,12 @@ fn post_response_response_and_ack() {
             error: None,
             file_id: Some("fid".into()),
             output: Some(json!({"value": 1})),
+            total_size: None,
+            chunk_offset: None,
+            transfer_type: None,
+            total_chunks: None,
+            chunk_size: None,
+            chunk_num: None,
         }],
         delegates: vec![],
         socks: vec![],
@@ -428,4 +440,94 @@ fn get_tasking_all() {
     let req = GetTaskingRequest::all();
     assert_eq!(req.tasking_size, -1);
     assert_eq!(req.action, "get_tasking");
+}
+
+#[test]
+fn mythic_4_resume_token_and_artifact_fields() {
+    let task = Task {
+        command: "shell".into(),
+        parameters: "whoami".into(),
+        timestamp: 1.0,
+        id: TASK_ID.into(),
+        token: Some(42),
+    };
+    let decoded_task: Task = roundtrip(&task);
+    assert_eq!(decoded_task.token, Some(42));
+
+    let dl = Download {
+        total_size: None,
+        total_chunks: None,
+        chunk_size: None,
+        host: None,
+        is_screenshot: None,
+        filename: None,
+        full_path: None,
+        file_id: Some("fid".into()),
+        chunk_offset: None,
+        chunk_num: None,
+        chunk_data: None,
+        resume: Some(true),
+    };
+    let decoded_dl: Download = roundtrip(&dl);
+    assert_eq!(decoded_dl.resume, Some(true));
+    assert_eq!(decoded_dl.file_id.as_deref(), Some("fid"));
+
+    let ack = TaskResponseAck {
+        task_id: TASK_ID.into(),
+        status: "success".into(),
+        error: None,
+        file_id: Some("fid".into()),
+        output: None,
+        total_size: Some(1048576),
+        chunk_offset: Some(524288),
+        transfer_type: Some("offset".into()),
+        total_chunks: None,
+        chunk_size: None,
+        chunk_num: None,
+    };
+    let decoded_ack: TaskResponseAck = roundtrip(&ack);
+    assert_eq!(decoded_ack.transfer_type.as_deref(), Some("offset"));
+    assert_eq!(decoded_ack.chunk_offset, Some(524288));
+
+    let art = Artifact {
+        base_artifact: "File Write".into(),
+        artifact: "/tmp/a".into(),
+        host: None,
+        needs_cleanup: Some(true),
+        resolved: Some(false),
+    };
+    let decoded_art: Artifact = roundtrip(&art);
+    assert_eq!(decoded_art.needs_cleanup, Some(true));
+    assert_eq!(decoded_art.resolved, Some(false));
+
+    let tok = Token {
+        token_id: 7,
+        host: Some("h".into()),
+        description: Some("admin token".into()),
+        user: Some("admin".into()),
+        groups: None,
+        privileges: None,
+        thread_id: None,
+        process_id: None,
+        session_id: None,
+        logon_sid: None,
+        integrity_level_sid: None,
+        restricted: None,
+        default_dacl: None,
+        handle: None,
+        capabilities: None,
+        app_container_sid: None,
+        app_container_number: None,
+    };
+    let decoded_tok: Token = roundtrip(&tok);
+    assert_eq!(decoded_tok.description.as_deref(), Some("admin token"));
+
+    let cb = CallbackToken {
+        action: "add".into(),
+        host: Some("h".into()),
+        token_id: 7,
+        token: Some(tok),
+    };
+    let decoded_cb: CallbackToken = roundtrip(&cb);
+    assert_eq!(decoded_cb.token.as_ref().unwrap().token_id, 7);
 }

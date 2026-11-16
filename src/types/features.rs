@@ -83,6 +83,12 @@ pub struct Artifact {
     pub artifact: String,
     #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
     pub host: Option<String>,
+    /// Optional. Defaults to false when omitted.
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
+    pub needs_cleanup: Option<bool>,
+    /// Optional. Defaults to false when omitted.
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
+    pub resolved: Option<bool>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -160,6 +166,8 @@ pub struct Token {
     #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
     pub host: Option<String>,
     #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
+    pub description: Option<String>,
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
     pub user: Option<String>,
     #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
     pub groups: Option<String>,
@@ -196,6 +204,9 @@ pub struct CallbackToken {
     #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
     pub host: Option<String>,
     pub token_id: u32,
+    /// Optional full token payload when adding or updating.
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
+    pub token: Option<Token>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -223,6 +234,9 @@ pub struct Download {
     pub chunk_num: Option<u32>,
     #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
     pub chunk_data: Option<String>,
+    /// Set true with `file_id` to resume an interrupted transfer.
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
+    pub resume: Option<bool>,
 }
 
 #[derive(Debug, Clone, PartialEq)]

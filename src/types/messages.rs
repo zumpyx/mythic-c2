@@ -166,6 +166,9 @@ pub struct Task {
     pub parameters: String,
     pub timestamp: f64,
     pub id: String,
+    /// Token id associated with this task, when the operator selected one.
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
+    pub token: Option<u32>,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -254,6 +257,19 @@ pub struct TaskResponseAck {
     #[cfg(feature = "json")]
     #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
     pub output: Option<Value>,
+    // Resume / transfer progress fields returned by Mythic.
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
+    pub total_size: Option<i64>,
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
+    pub chunk_offset: Option<u64>,
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
+    pub transfer_type: Option<String>,
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
+    pub total_chunks: Option<u32>,
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
+    pub chunk_size: Option<u32>,
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
+    pub chunk_num: Option<u32>,
 }
 
 // ---------------------------------------------------------------------------
