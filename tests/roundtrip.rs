@@ -324,7 +324,7 @@ fn top_level_channels() {
         get_delegate_tasks: None,
         delegates: vec![Delegate {
             message: "b64".into(),
-            c2_profile: "tcp".into(),
+            c2_profile: Some("tcp".into()),
             uuid: "child".into(),
             new_uuid: None,
         }],
@@ -338,6 +338,7 @@ fn top_level_channels() {
             server_id: 2,
             data: "BBBB".into(),
             exit: true,
+            port: Some(445),
         }],
         interactive: vec![InteractiveMessage {
             task_id: TASK_ID.into(),
@@ -356,8 +357,10 @@ fn top_level_channels() {
 
     let decoded: GetTaskingRequest = roundtrip(&req);
     assert_eq!(decoded.delegates.len(), 1);
+    assert_eq!(decoded.delegates[0].c2_profile.as_deref(), Some("tcp"));
     assert_eq!(decoded.socks.len(), 1);
     assert!(decoded.rpfwd[0].exit);
+    assert_eq!(decoded.rpfwd[0].port, Some(445));
     assert_eq!(decoded.interactive[0].message_type, 0);
     assert_eq!(decoded.alerts.len(), 1);
 }
@@ -537,4 +540,19 @@ fn mythic_4_resume_token_and_artifact_fields() {
     };
     let decoded_cb: CallbackToken = roundtrip(&cb);
     assert_eq!(decoded_cb.token.as_ref().unwrap().token_id, 7);
+}
+
+#[test]
+fn delegate_response_omits_c2_profile() {
+    // Mythic→agent delegates omit c2_profile
+    let json = r#"{
+        "message": "b64msg",
+        "uuid": "temp-uuid",
+        "new_uuid": "callback-uuid"
+    }"#;
+    let d: Delegate = serde_json::from_str(json).unwrap();
+    assert_eq!(d.message, "b64msg");
+    assert!(d.c2_profile.is_none());
+    assert_eq!(d.uuid, "temp-uuid");
+    assert_eq!(d.new_uuid.as_deref(), Some("callback-uuid"));
 }
