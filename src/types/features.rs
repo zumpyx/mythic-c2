@@ -10,11 +10,15 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 /// P2P delegate message.
+///
+/// `c2_profile` is required on the agent→Mythic path and omitted on the
+/// Mythic→agent path, so it is optional here.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Delegate {
     pub message: String,
-    pub c2_profile: String,
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
+    pub c2_profile: Option<String>,
     pub uuid: String,
     #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
     pub new_uuid: Option<String>,
@@ -314,6 +318,10 @@ pub struct RpfwdMessage {
     pub data: String,
     #[cfg_attr(feature = "json", serde(default))]
     pub exit: bool,
+    /// Local listening port. Required when an agent supports multiple RPFWD ports
+    /// so Mythic can identify which forward the data belongs to.
+    #[cfg_attr(feature = "json", serde(default, skip_serializing_if = "Option::is_none"))]
+    pub port: Option<u32>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
